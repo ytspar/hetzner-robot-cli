@@ -1,11 +1,23 @@
 // ============================================================================
-// Hetzner Robot API - Main Library Export
+// Hetzner CLI - Main Library Export
 // ============================================================================
 
-// Client
-export { HetznerRobotClient } from './client.js';
+// Robot Client
+export { HetznerRobotClient } from './robot/client.js';
 
-// Types
+// Auction Client
+export { fetchAuctionServers, filterAuctionServers, sortAuctionServers } from './auction/client.js';
+
+// Auction Types
+export type {
+  AuctionServer,
+  AuctionDiskData,
+  AuctionIpPrice,
+  AuctionFilterOptions,
+  AuctionResponse,
+} from './types.js';
+
+// Robot Types
 export type {
   // Server
   Server,
@@ -78,7 +90,7 @@ export type {
   // API
   ApiResponse,
   ApiError,
-} from './types.js';
+} from './robot/types.js';
 
 // Configuration utilities (for CLI integration)
 export {
@@ -90,7 +102,7 @@ export {
   promptLogin,
   requireCredentials,
   type Config,
-} from './config.js';
+} from './shared/config.js';
 
 // Formatter utilities (for custom output)
 export {
@@ -106,4 +118,4 @@ export {
   formatDate,
   formatDateTime,
   formatJson,
-} from './formatter.js';
+} from './shared/formatter.js';

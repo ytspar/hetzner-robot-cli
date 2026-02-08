@@ -11,6 +11,9 @@ import {
   formatBytes,
   formatDate,
   formatDateTime,
+  formatJson,
+} from '../shared/formatter.js';
+import {
   formatServerList,
   formatServerDetails,
   formatResetOptions,
@@ -40,7 +43,6 @@ import {
   formatServerMarketProductList,
   formatTransactionList,
   formatCancellation,
-  formatJson,
 } from './formatter.js';
 
 describe('Formatter Module', () => {
