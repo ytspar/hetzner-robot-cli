@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { config } from 'dotenv';
 
 import { registerRobotCommands } from './robot/commands/index.js';
 import { registerCloudCommands } from './cloud/commands/index.js';
 import { registerAuctionCommands } from './auction/commands.js';
-import { generateReference } from './shared/reference.js';
+import { generateReference, type ReferenceSection } from './shared/reference.js';
 
 config();
 
@@ -42,8 +42,12 @@ program
   .command('reference')
   .alias('ref')
   .description('Print complete CLI reference (optimized for LLM context)')
-  .action(() => {
-    console.log(generateReference());
+  .addOption(
+    new Option('--section <section>', 'Show only a specific section')
+      .choices(['robot', 'cloud', 'auction'])
+  )
+  .action((options: { section?: ReferenceSection }) => {
+    console.log(generateReference(options.section));
   });
 
 program.parse();

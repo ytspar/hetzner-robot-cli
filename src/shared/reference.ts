@@ -4,8 +4,9 @@
 // by language models (Claude, GPT, etc.) while remaining human-readable.
 // ============================================================================
 
-export function generateReference(): string {
-  return `\
+export type ReferenceSection = 'robot' | 'cloud' | 'auction';
+
+const PREAMBLE = `\
 # HETZNER CLI — COMPLETE REFERENCE
 # =================================
 # Version: 2.0.0
@@ -22,6 +23,8 @@ export function generateReference(): string {
 #   All commands default to human-readable formatted tables.
 #   Add --json to any command to get machine-readable JSON output.
 #   Example: hetzner server list --json | jq '.[].server.server_ip'
+#
+# SECTIONS: Use "hetzner reference --section robot|cloud|auction" to show only one section.
 
 # ============================================================================
 # AUTHENTICATION
@@ -56,8 +59,9 @@ hetzner [command] [options]
   -p, --password <password>   Robot API password (use "-" to read from stdin)
   --json                      Output raw JSON instead of formatted tables
   -V, --version               Show version number
-  -h, --help                  Show help for any command
+  -h, --help                  Show help for any command`;
 
+const SECTION_ROBOT = `\
 # ============================================================================
 # ROBOT API COMMANDS — Dedicated Server Management
 # ============================================================================
@@ -232,6 +236,26 @@ hetzner order transaction <id>             # Get order transaction details
 hetzner interactive                        # Launch menu-driven interface for common operations
 hetzner i                                  # Short alias
 
+# --- Robot API Examples ---
+# List all dedicated servers:
+#   hetzner server list
+#
+# Get server details as JSON:
+#   hetzner server get 123456 --json
+#
+# Hardware reset a server:
+#   hetzner reset execute 123456 -t hw -y
+#
+# Activate rescue mode with SSH key:
+#   hetzner boot rescue activate 123456 -k ab:cd:ef:12:34:56
+#
+# Switch failover IP:
+#   hetzner failover switch 1.2.3.4 5.6.7.8 -y
+#
+# Query monthly traffic:
+#   hetzner traffic query --ip 1.2.3.4 --from 2025-01-01 --to 2025-01-31`;
+
+const SECTION_CLOUD = `\
 # ============================================================================
 # CLOUD API COMMANDS — hetzner cloud <resource> <action>
 # ============================================================================
@@ -429,6 +453,24 @@ hetzner cloud iso list                     # List all ISO images (alias: ls)
   -a, --architecture <arch>                #   Filter by architecture
 hetzner cloud iso describe <id>            # Show ISO details
 
+# --- Cloud API Examples ---
+# Set up cloud authentication:
+#   hetzner cloud context create production -t hcloud_xxxxx
+#   hetzner cloud context use production
+#
+# Create a cloud server:
+#   hetzner cloud server create --name web1 --type cx22 --image ubuntu-22.04 --location fsn1 --ssh-key my-key
+#
+# List cloud servers filtered by label:
+#   hetzner cloud server list -l "env=prod" --json
+#
+# Snapshot a server:
+#   hetzner cloud server create-image 12345 --description "before upgrade"
+#
+# Resize a server:
+#   hetzner cloud server change-type 12345 --type cx32`;
+
+const SECTION_AUCTION = `\
 # ============================================================================
 # AUCTION COMMANDS — Public Server Auction Browser
 # ============================================================================
@@ -515,46 +557,6 @@ hetzner auction show <id>                  # Show full details for a specific au
   --currency <currency>                    #   EUR (default) or USD
   --json                                   #   Output raw JSON object
 
-# ============================================================================
-# USAGE EXAMPLES
-# ============================================================================
-
-# --- Robot API Examples ---
-# List all dedicated servers:
-#   hetzner server list
-#
-# Get server details as JSON:
-#   hetzner server get 123456 --json
-#
-# Hardware reset a server:
-#   hetzner reset execute 123456 -t hw -y
-#
-# Activate rescue mode with SSH key:
-#   hetzner boot rescue activate 123456 -k ab:cd:ef:12:34:56
-#
-# Switch failover IP:
-#   hetzner failover switch 1.2.3.4 5.6.7.8 -y
-#
-# Query monthly traffic:
-#   hetzner traffic query --ip 1.2.3.4 --from 2025-01-01 --to 2025-01-31
-
-# --- Cloud API Examples ---
-# Set up cloud authentication:
-#   hetzner cloud context create production -t hcloud_xxxxx
-#   hetzner cloud context use production
-#
-# Create a cloud server:
-#   hetzner cloud server create --name web1 --type cx22 --image ubuntu-22.04 --location fsn1 --ssh-key my-key
-#
-# List cloud servers filtered by label:
-#   hetzner cloud server list -l "env=prod" --json
-#
-# Snapshot a server:
-#   hetzner cloud server create-image 12345 --description "before upgrade"
-#
-# Resize a server:
-#   hetzner cloud server change-type 12345 --type cx32
-
 # --- Auction API Examples ---
 # Browse all auction servers sorted by price:
 #   hetzner auction list
@@ -581,8 +583,9 @@ hetzner auction show <id>                  # Show full details for a specific au
 #   hetzner auction list --max-price 60 --ecc --json | jq '.[].id'
 #
 # Compare EUR vs USD pricing:
-#   hetzner auction list --currency USD --max-price 50
+#   hetzner auction list --currency USD --max-price 50`;
 
+const POSTAMBLE = `\
 # ============================================================================
 # CONFIGURATION FILES
 # ============================================================================
@@ -615,6 +618,18 @@ hetzner auction show <id>                  # Show full details for a specific au
 # Auction Client (no auth):
 #   const { server: servers } = await fetchAuctionServers('EUR');
 #   const filtered = filterAuctionServers(servers, { maxPrice: 50, ecc: true });
-#   const sorted = sortAuctionServers(filtered, 'price', false);
-`;
+#   const sorted = sortAuctionServers(filtered, 'price', false);`;
+
+const SECTIONS: Record<ReferenceSection, string> = {
+  robot: SECTION_ROBOT,
+  cloud: SECTION_CLOUD,
+  auction: SECTION_AUCTION,
+};
+
+export function generateReference(section?: ReferenceSection): string {
+  if (section) {
+    const body = SECTIONS[section];
+    return `${PREAMBLE}\n\n${body}`;
+  }
+  return `${PREAMBLE}\n\n${SECTION_ROBOT}\n\n${SECTION_CLOUD}\n\n${SECTION_AUCTION}\n\n${POSTAMBLE}`;
 }
