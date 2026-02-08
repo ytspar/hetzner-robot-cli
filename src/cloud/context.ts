@@ -142,7 +142,8 @@ export async function deleteContext(name: string): Promise<void> {
   }
 
   await deleteToken(name);
-  delete config.contexts[name];
+  const { [name]: _, ...rest } = config.contexts;
+  config.contexts = rest;
 
   if (config.active === name) {
     const remaining = Object.keys(config.contexts);

@@ -92,6 +92,51 @@ export type {
   ApiError,
 } from './robot/types.js';
 
+// Cloud Client
+export { HetznerCloudClient } from './cloud/client.js';
+
+// Cloud Types
+export type {
+  CloudAction,
+  PaginationMeta,
+  CloudApiError,
+  Protection,
+  Datacenter,
+  Location,
+  ServerType,
+  ServerTypePrice,
+  ISO,
+  Image,
+  CloudSshKey,
+  CloudServer,
+  Network,
+  NetworkSubnet,
+  NetworkRoute,
+  CloudFirewall,
+  CloudFirewallRule,
+  CloudFirewallAppliedTo,
+  FloatingIp,
+  PrimaryIp,
+  Volume,
+  LoadBalancer,
+  LoadBalancerType,
+  LoadBalancerTarget,
+  LoadBalancerService,
+  Certificate,
+  PlacementGroup,
+  Labels,
+} from './cloud/types.js';
+
+// Cloud Context
+export {
+  createContext,
+  useContext,
+  deleteContext,
+  listContexts,
+  getActiveContext,
+  resolveToken,
+} from './cloud/context.js';
+
 // Configuration utilities (for CLI integration)
 export {
   loadConfig,

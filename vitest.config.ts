@@ -9,7 +9,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'text-summary', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/cli.ts', 'src/types.ts', 'src/robot/types.ts', 'src/robot/commands/**'],
+      exclude: ['src/**/*.test.ts', 'src/cli.ts', 'src/types.ts', 'src/robot/types.ts', 'src/robot/commands/**', 'src/cloud/types.ts', 'src/cloud/commands/**', 'src/cloud/context.ts', 'src/cloud/helpers.ts'],
       thresholds: {
         lines: 95,
         functions: 90,

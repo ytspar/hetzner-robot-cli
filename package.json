@@ -1,7 +1,7 @@
 {
-  "name": "hetzner-robot-cli",
-  "version": "1.0.0",
-  "description": "Feature-complete CLI and Node.js library for the Hetzner Robot API (dedicated servers)",
+  "name": "hetzner-cli",
+  "version": "2.0.0",
+  "description": "Unified CLI and Node.js library for Hetzner Robot API (dedicated servers) and Cloud API",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,6 +17,22 @@
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js"
+    },
+    "./cloud/client": {
+      "types": "./dist/cloud/client.d.ts",
+      "import": "./dist/cloud/client.js"
+    },
+    "./cloud/types": {
+      "types": "./dist/cloud/types.d.ts",
+      "import": "./dist/cloud/types.js"
+    },
+    "./robot/client": {
+      "types": "./dist/robot/client.d.ts",
+      "import": "./dist/robot/client.js"
+    },
+    "./robot/types": {
+      "types": "./dist/robot/types.d.ts",
+      "import": "./dist/robot/types.js"
     }
   },
   "bin": {
@@ -46,16 +62,21 @@
   },
   "keywords": [
     "hetzner",
-    "robot",
+    "hetzner-cloud",
+    "hetzner-robot",
+    "hcloud",
     "api",
     "cli",
     "dedicated-server",
+    "cloud-server",
     "server-management",
-    "hetzner-robot",
     "datacenter",
     "hosting",
     "cloud",
-    "infrastructure"
+    "infrastructure",
+    "load-balancer",
+    "firewall",
+    "volume"
   ],
   "author": "",
   "license": "MIT",
