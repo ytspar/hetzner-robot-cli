@@ -353,6 +353,213 @@ describe('filterAuctionServers', () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe(3);
   });
+
+  // === Boundary / edge case tests ===
+
+  it('should include server at exact minPrice boundary', () => {
+    const servers = [makeServer({ price: 50 })];
+    expect(filterAuctionServers(servers, { minPrice: 50 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxPrice boundary', () => {
+    const servers = [makeServer({ price: 50 })];
+    expect(filterAuctionServers(servers, { maxPrice: 50 })).toHaveLength(1);
+  });
+
+  it('should include server at exact minRam boundary', () => {
+    const servers = [makeServer({ ram_size: 64 })];
+    expect(filterAuctionServers(servers, { minRam: 64 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxRam boundary', () => {
+    const servers = [makeServer({ ram_size: 64 })];
+    expect(filterAuctionServers(servers, { maxRam: 64 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxHourlyPrice boundary', () => {
+    const servers = [makeServer({ hourly_price: 0.05 })];
+    expect(filterAuctionServers(servers, { maxHourlyPrice: 0.05 })).toHaveLength(1);
+  });
+
+  it('should include server at exact minDiskSize boundary', () => {
+    const servers = [makeServer({
+      serverDiskData: { nvme: [500, 500], sata: [], hdd: [], general: [] },
+    })];
+    expect(filterAuctionServers(servers, { minDiskSize: 1000 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxDiskSize boundary', () => {
+    const servers = [makeServer({
+      serverDiskData: { nvme: [500, 500], sata: [], hdd: [], general: [] },
+    })];
+    expect(filterAuctionServers(servers, { maxDiskSize: 1000 })).toHaveLength(1);
+  });
+
+  it('should include server at exact minDiskCount boundary', () => {
+    const servers = [makeServer({ hdd_count: 4 })];
+    expect(filterAuctionServers(servers, { minDiskCount: 4 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxDiskCount boundary', () => {
+    const servers = [makeServer({ hdd_count: 4 })];
+    expect(filterAuctionServers(servers, { maxDiskCount: 4 })).toHaveLength(1);
+  });
+
+  it('should include server at exact minCpuCount boundary', () => {
+    const servers = [makeServer({ cpu_count: 2 })];
+    expect(filterAuctionServers(servers, { minCpuCount: 2 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxCpuCount boundary', () => {
+    const servers = [makeServer({ cpu_count: 2 })];
+    expect(filterAuctionServers(servers, { maxCpuCount: 2 })).toHaveLength(1);
+  });
+
+  it('should include server at exact maxSetupPrice boundary', () => {
+    const servers = [makeServer({ setup_price: 50 })];
+    expect(filterAuctionServers(servers, { maxSetupPrice: 50 })).toHaveLength(1);
+  });
+
+  it('should include server at exact minBandwidth boundary', () => {
+    const servers = [makeServer({ bandwidth: 1000 })];
+    expect(filterAuctionServers(servers, { minBandwidth: 1000 })).toHaveLength(1);
+  });
+
+  it('minDiskSize should sum across all disk types', () => {
+    const servers = [makeServer({
+      serverDiskData: { nvme: [256], sata: [256], hdd: [512], general: [] },
+    })];
+    // total = 1024
+    expect(filterAuctionServers(servers, { minDiskSize: 1024 })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { minDiskSize: 1025 })).toHaveLength(0);
+  });
+
+  it('maxDiskSize should sum across all disk types', () => {
+    const servers = [makeServer({
+      serverDiskData: { nvme: [256], sata: [256], hdd: [512], general: [] },
+    })];
+    expect(filterAuctionServers(servers, { maxDiskSize: 1024 })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { maxDiskSize: 1023 })).toHaveLength(0);
+  });
+
+  it('diskType should match any disk of that type present', () => {
+    const server = makeServer({
+      serverDiskData: { nvme: [256], sata: [512], hdd: [], general: [] },
+    });
+    expect(filterAuctionServers([server], { diskType: 'nvme' })).toHaveLength(1);
+    expect(filterAuctionServers([server], { diskType: 'sata' })).toHaveLength(1);
+    expect(filterAuctionServers([server], { diskType: 'hdd' })).toHaveLength(0);
+  });
+
+  it('cpu filter should be case insensitive both ways', () => {
+    const servers = [makeServer({ cpu: 'AMD EPYC 7502P' })];
+    expect(filterAuctionServers(servers, { cpu: 'epyc' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { cpu: 'EPYC' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { cpu: 'Epyc' })).toHaveLength(1);
+  });
+
+  it('datacenter filter should be case insensitive', () => {
+    const servers = [makeServer({ datacenter: 'HEL1-DC4' })];
+    expect(filterAuctionServers(servers, { datacenter: 'hel' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { datacenter: 'HEL' })).toHaveLength(1);
+  });
+
+  it('specials filter should be case insensitive', () => {
+    const servers = [makeServer({ specials: ['GPU', 'iNIC'] })];
+    expect(filterAuctionServers(servers, { specials: 'gpu' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { specials: 'GPU' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { specials: 'inic' })).toHaveLength(1);
+  });
+
+  it('text search should be case insensitive', () => {
+    const servers = [makeServer({ description: ['2x NVMe SSD 1 TB'] })];
+    expect(filterAuctionServers(servers, { text: 'NVME' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { text: 'nvme' })).toHaveLength(1);
+  });
+
+  it('text search should match across multiple description lines', () => {
+    const servers = [makeServer({ description: ['Intel Core i7-6700', '4x NVMe 1 TB'] })];
+    expect(filterAuctionServers(servers, { text: 'i7' })).toHaveLength(1);
+    expect(filterAuctionServers(servers, { text: 'nvme' })).toHaveLength(1);
+  });
+
+  it('gpu=false should exclude GPU servers', () => {
+    const servers = [
+      makeServer({ specials: ['GPU'] }),
+      makeServer({ id: 2, specials: [] }),
+    ];
+    const result = filterAuctionServers(servers, { gpu: false });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  it('inic=false should exclude iNIC servers', () => {
+    const servers = [
+      makeServer({ specials: ['iNIC'] }),
+      makeServer({ id: 2, specials: [] }),
+    ];
+    const result = filterAuctionServers(servers, { inic: false });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  it('ecc=false should only return non-ECC servers', () => {
+    const servers = [
+      makeServer({ is_ecc: true }),
+      makeServer({ id: 2, is_ecc: false }),
+    ];
+    const result = filterAuctionServers(servers, { ecc: false });
+    expect(result).toHaveLength(1);
+    expect(result[0].is_ecc).toBe(false);
+  });
+
+  it('should handle all filters simultaneously', () => {
+    const target = makeServer({
+      id: 99,
+      price: 45,
+      hourly_price: 0.06,
+      ram_size: 128,
+      cpu: 'AMD EPYC 7502P',
+      cpu_count: 1,
+      datacenter: 'HEL1-DC4',
+      hdd_count: 4,
+      bandwidth: 1000,
+      is_ecc: true,
+      is_highio: false,
+      setup_price: 0,
+      fixed_price: true,
+      specials: ['iNIC', 'ECC'],
+      serverDiskData: { nvme: [1000, 1000, 1000, 1000], sata: [], hdd: [], general: [] },
+      description: ['AMD EPYC 7502P', '4x NVMe 1 TB'],
+    });
+    const decoy = makeServer({ id: 1, price: 500, ram_size: 16 });
+
+    const result = filterAuctionServers([target, decoy], {
+      minPrice: 40,
+      maxPrice: 50,
+      maxHourlyPrice: 0.07,
+      minRam: 64,
+      maxRam: 256,
+      cpu: 'epyc',
+      datacenter: 'HEL',
+      minDiskSize: 3000,
+      maxDiskSize: 5000,
+      minDiskCount: 3,
+      maxDiskCount: 6,
+      diskType: 'nvme',
+      minBandwidth: 1000,
+      ecc: true,
+      inic: true,
+      fixedPrice: true,
+      maxSetupPrice: 0,
+      minCpuCount: 1,
+      maxCpuCount: 2,
+      specials: 'ECC',
+      text: 'nvme',
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(99);
+  });
 });
 
 describe('sortAuctionServers', () => {
