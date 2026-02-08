@@ -258,6 +258,82 @@ describe('filterAuctionServers', () => {
     expect(result[0].id).toBe(2);
   });
 
+  it('should filter by maxHourlyPrice', () => {
+    const servers = [
+      makeServer({ hourly_price: 0.03 }),
+      makeServer({ id: 2, hourly_price: 0.08 }),
+    ];
+    const result = filterAuctionServers(servers, { maxHourlyPrice: 0.05 });
+    expect(result).toHaveLength(1);
+    expect(result[0].hourly_price).toBe(0.03);
+  });
+
+  it('should filter by maxDiskSize', () => {
+    const servers = [
+      makeServer({
+        serverDiskData: { nvme: [512, 512], sata: [], hdd: [], general: [] },
+      }),
+      makeServer({
+        id: 2,
+        serverDiskData: { nvme: [2000, 2000], sata: [], hdd: [], general: [] },
+      }),
+    ];
+    const result = filterAuctionServers(servers, { maxDiskSize: 2000 });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(1);
+  });
+
+  it('should filter by maxDiskCount', () => {
+    const servers = [
+      makeServer({ hdd_count: 2 }),
+      makeServer({ id: 2, hdd_count: 6 }),
+    ];
+    const result = filterAuctionServers(servers, { maxDiskCount: 4 });
+    expect(result).toHaveLength(1);
+    expect(result[0].hdd_count).toBe(2);
+  });
+
+  it('should filter by maxCpuCount', () => {
+    const servers = [
+      makeServer({ cpu_count: 1 }),
+      makeServer({ id: 2, cpu_count: 2 }),
+    ];
+    const result = filterAuctionServers(servers, { maxCpuCount: 1 });
+    expect(result).toHaveLength(1);
+    expect(result[0].cpu_count).toBe(1);
+  });
+
+  it('should filter by minBandwidth', () => {
+    const servers = [
+      makeServer({ bandwidth: 1000 }),
+      makeServer({ id: 2, bandwidth: 10000 }),
+    ];
+    const result = filterAuctionServers(servers, { minBandwidth: 5000 });
+    expect(result).toHaveLength(1);
+    expect(result[0].bandwidth).toBe(10000);
+  });
+
+  it('should filter by highio', () => {
+    const servers = [
+      makeServer({ is_highio: false }),
+      makeServer({ id: 2, is_highio: true }),
+    ];
+    const result = filterAuctionServers(servers, { highio: true });
+    expect(result).toHaveLength(1);
+    expect(result[0].is_highio).toBe(true);
+  });
+
+  it('should filter by specials substring', () => {
+    const servers = [
+      makeServer({ specials: ['iNIC'] }),
+      makeServer({ id: 2, specials: ['GPU', 'HWR'] }),
+      makeServer({ id: 3, specials: [] }),
+    ];
+    const result = filterAuctionServers(servers, { specials: 'HWR' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
   it('should handle empty server array', () => {
     const result = filterAuctionServers([], { maxPrice: 50 });
     expect(result).toHaveLength(0);
@@ -331,6 +407,60 @@ describe('sortAuctionServers', () => {
       }),
     ], 'disk', false);
     expect(sorted.map(s => s.id)).toEqual([3, 1, 2]);
+  });
+
+  it('should sort by hourly price', () => {
+    const sorted = sortAuctionServers([
+      makeServer({ id: 1, hourly_price: 0.05 }),
+      makeServer({ id: 2, hourly_price: 0.02 }),
+      makeServer({ id: 3, hourly_price: 0.08 }),
+    ], 'hourly', false);
+    expect(sorted.map(s => s.hourly_price)).toEqual([0.02, 0.05, 0.08]);
+  });
+
+  it('should sort by setup price', () => {
+    const sorted = sortAuctionServers([
+      makeServer({ id: 1, setup_price: 50 }),
+      makeServer({ id: 2, setup_price: 0 }),
+      makeServer({ id: 3, setup_price: 99 }),
+    ], 'setup', false);
+    expect(sorted.map(s => s.setup_price)).toEqual([0, 50, 99]);
+  });
+
+  it('should sort by cpu_count', () => {
+    const sorted = sortAuctionServers([
+      makeServer({ id: 1, cpu_count: 2 }),
+      makeServer({ id: 2, cpu_count: 1 }),
+      makeServer({ id: 3, cpu_count: 4 }),
+    ], 'cpu_count', false);
+    expect(sorted.map(s => s.cpu_count)).toEqual([1, 2, 4]);
+  });
+
+  it('should sort by disk_count', () => {
+    const sorted = sortAuctionServers([
+      makeServer({ id: 1, hdd_count: 4 }),
+      makeServer({ id: 2, hdd_count: 2 }),
+      makeServer({ id: 3, hdd_count: 8 }),
+    ], 'disk_count', false);
+    expect(sorted.map(s => s.hdd_count)).toEqual([2, 4, 8]);
+  });
+
+  it('should sort by bandwidth', () => {
+    const sorted = sortAuctionServers([
+      makeServer({ id: 1, bandwidth: 10000 }),
+      makeServer({ id: 2, bandwidth: 1000 }),
+      makeServer({ id: 3, bandwidth: 20000 }),
+    ], 'bandwidth', false);
+    expect(sorted.map(s => s.bandwidth)).toEqual([1000, 10000, 20000]);
+  });
+
+  it('should sort by next_reduce', () => {
+    const sorted = sortAuctionServers([
+      makeServer({ id: 1, next_reduce: 90 }),
+      makeServer({ id: 2, next_reduce: 15 }),
+      makeServer({ id: 3, next_reduce: 45 }),
+    ], 'next_reduce', false);
+    expect(sorted.map(s => s.next_reduce)).toEqual([15, 45, 90]);
   });
 
   it('should not mutate the original array', () => {

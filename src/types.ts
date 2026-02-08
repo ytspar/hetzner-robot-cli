@@ -95,19 +95,26 @@ export interface AuctionServer {
 export interface AuctionFilterOptions {
   minPrice?: number;
   maxPrice?: number;
+  maxHourlyPrice?: number;
   minRam?: number;
   maxRam?: number;
   cpu?: string;
   datacenter?: string;
   minDiskSize?: number;
+  maxDiskSize?: number;
   minDiskCount?: number;
+  maxDiskCount?: number;
   diskType?: 'nvme' | 'sata' | 'hdd';
   ecc?: boolean;
   gpu?: boolean;
   inic?: boolean;
+  highio?: boolean;
+  specials?: string;
   fixedPrice?: boolean;
   maxSetupPrice?: number;
   minCpuCount?: number;
+  maxCpuCount?: number;
+  minBandwidth?: number;
   text?: string;
 }
 

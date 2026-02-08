@@ -27,16 +27,19 @@ export function filterAuctionServers(
   return servers.filter(s => {
     if (filters.minPrice !== undefined && s.price < filters.minPrice) return false;
     if (filters.maxPrice !== undefined && s.price > filters.maxPrice) return false;
+    if (filters.maxHourlyPrice !== undefined && s.hourly_price > filters.maxHourlyPrice) return false;
     if (filters.minRam !== undefined && s.ram_size < filters.minRam) return false;
     if (filters.maxRam !== undefined && s.ram_size > filters.maxRam) return false;
     if (filters.cpu && !s.cpu.toLowerCase().includes(filters.cpu.toLowerCase())) return false;
     if (filters.datacenter && !s.datacenter.toLowerCase().includes(filters.datacenter.toLowerCase())) return false;
-    if (filters.minDiskSize !== undefined) {
+    if (filters.minDiskSize !== undefined || filters.maxDiskSize !== undefined) {
       const total = [...s.serverDiskData.nvme, ...s.serverDiskData.sata, ...s.serverDiskData.hdd]
         .reduce((sum, d) => sum + d, 0);
-      if (total < filters.minDiskSize) return false;
+      if (filters.minDiskSize !== undefined && total < filters.minDiskSize) return false;
+      if (filters.maxDiskSize !== undefined && total > filters.maxDiskSize) return false;
     }
     if (filters.minDiskCount !== undefined && s.hdd_count < filters.minDiskCount) return false;
+    if (filters.maxDiskCount !== undefined && s.hdd_count > filters.maxDiskCount) return false;
     if (filters.diskType) {
       if (s.serverDiskData[filters.diskType].length === 0) return false;
     }
@@ -49,9 +52,16 @@ export function filterAuctionServers(
       const hasInic = s.specials.includes('iNIC');
       if (filters.inic !== hasInic) return false;
     }
+    if (filters.highio !== undefined && s.is_highio !== filters.highio) return false;
+    if (filters.specials) {
+      const search = filters.specials.toLowerCase();
+      if (!s.specials.some(sp => sp.toLowerCase().includes(search))) return false;
+    }
     if (filters.fixedPrice !== undefined && s.fixed_price !== filters.fixedPrice) return false;
     if (filters.maxSetupPrice !== undefined && s.setup_price > filters.maxSetupPrice) return false;
     if (filters.minCpuCount !== undefined && s.cpu_count < filters.minCpuCount) return false;
+    if (filters.maxCpuCount !== undefined && s.cpu_count > filters.maxCpuCount) return false;
+    if (filters.minBandwidth !== undefined && s.bandwidth < filters.minBandwidth) return false;
     if (filters.text) {
       const searchText = filters.text.toLowerCase();
       const haystack = s.description.join(' ').toLowerCase();
@@ -66,17 +76,22 @@ export function sortAuctionServers(
   field: string,
   desc: boolean
 ): AuctionServer[] {
+  const totalDisk = (s: AuctionServer) =>
+    [...s.serverDiskData.nvme, ...s.serverDiskData.sata, ...s.serverDiskData.hdd].reduce((sum, d) => sum + d, 0);
+
   const sorted = [...servers].sort((a, b) => {
     switch (field) {
       case 'price': return a.price - b.price;
+      case 'hourly': return a.hourly_price - b.hourly_price;
+      case 'setup': return a.setup_price - b.setup_price;
       case 'ram': return a.ram_size - b.ram_size;
-      case 'disk': {
-        const diskA = [...a.serverDiskData.nvme, ...a.serverDiskData.sata, ...a.serverDiskData.hdd].reduce((sum, d) => sum + d, 0);
-        const diskB = [...b.serverDiskData.nvme, ...b.serverDiskData.sata, ...b.serverDiskData.hdd].reduce((sum, d) => sum + d, 0);
-        return diskA - diskB;
-      }
+      case 'disk': return totalDisk(a) - totalDisk(b);
+      case 'disk_count': return a.hdd_count - b.hdd_count;
       case 'cpu': return a.cpu.localeCompare(b.cpu);
+      case 'cpu_count': return a.cpu_count - b.cpu_count;
       case 'datacenter': return a.datacenter.localeCompare(b.datacenter);
+      case 'bandwidth': return a.bandwidth - b.bandwidth;
+      case 'next_reduce': return a.next_reduce - b.next_reduce;
       default: return a.price - b.price;
     }
   });

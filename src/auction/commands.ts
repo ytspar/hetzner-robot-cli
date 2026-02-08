@@ -7,20 +7,28 @@ import type { AuctionFilterOptions } from '../types.js';
 interface AuctionListOptions {
   minPrice?: string;
   maxPrice?: string;
+  maxHourlyPrice?: string;
   minRam?: string;
   maxRam?: string;
   cpu?: string;
   datacenter?: string;
   minDiskSize?: string;
+  maxDiskSize?: string;
   minDiskCount?: string;
+  maxDiskCount?: string;
   diskType?: 'nvme' | 'sata' | 'hdd';
   ecc?: boolean;
   gpu?: boolean;
   inic?: boolean;
+  highio?: boolean;
+  specials?: string;
   fixedPrice?: boolean;
   auctionOnly?: boolean;
+  noSetupFee?: boolean;
   maxSetupPrice?: string;
   minCpuCount?: string;
+  maxCpuCount?: string;
+  minBandwidth?: string;
   search?: string;
   currency?: 'EUR' | 'USD';
   sort?: string;
@@ -47,25 +55,33 @@ export function registerAuctionCommands(parent: Command): void {
     .command('list')
     .alias('ls')
     .description('List and filter auction servers')
-    .option('--min-price <n>', 'Minimum monthly price in EUR')
-    .option('--max-price <n>', 'Maximum monthly price in EUR')
+    .option('--min-price <n>', 'Minimum monthly price')
+    .option('--max-price <n>', 'Maximum monthly price')
+    .option('--max-hourly-price <n>', 'Maximum hourly price')
     .option('--min-ram <gb>', 'Minimum RAM in GB')
     .option('--max-ram <gb>', 'Maximum RAM in GB')
     .option('--cpu <text>', 'CPU model substring (e.g. "Ryzen", "i7-6700")')
+    .option('--min-cpu-count <n>', 'Minimum CPU/socket count')
+    .option('--max-cpu-count <n>', 'Maximum CPU/socket count')
     .option('--datacenter <text>', 'Datacenter substring (e.g. "FSN", "HEL1-DC2")')
     .option('--min-disk-size <gb>', 'Minimum total disk capacity in GB')
+    .option('--max-disk-size <gb>', 'Maximum total disk capacity in GB')
     .option('--min-disk-count <n>', 'Minimum number of drives')
+    .option('--max-disk-count <n>', 'Maximum number of drives')
     .addOption(
       new Option('--disk-type <type>', 'Filter by disk type present')
         .choices(['nvme', 'sata', 'hdd'])
     )
+    .option('--min-bandwidth <mbit>', 'Minimum bandwidth in Mbit/s')
     .option('--ecc', 'Only ECC RAM servers')
     .option('--gpu', 'Only GPU servers')
     .option('--inic', 'Only servers with Intel NIC')
+    .option('--highio', 'Only high I/O servers')
+    .option('--specials <text>', 'Filter by special feature (substring match)')
     .option('--fixed-price', 'Only fixed-price servers')
     .option('--auction-only', 'Only auction (non-fixed) servers')
-    .option('--max-setup-price <n>', 'Maximum setup price in EUR')
-    .option('--min-cpu-count <n>', 'Minimum CPU count')
+    .option('--no-setup-fee', 'Only servers with no setup fee')
+    .option('--max-setup-price <n>', 'Maximum setup price')
     .option('--search <text>', 'Free-text search across description')
     .addOption(
       new Option('--currency <currency>', 'Price currency')
@@ -74,7 +90,7 @@ export function registerAuctionCommands(parent: Command): void {
     )
     .addOption(
       new Option('--sort <field>', 'Sort by field')
-        .choices(['price', 'ram', 'disk', 'cpu', 'datacenter'])
+        .choices(['price', 'hourly', 'setup', 'ram', 'disk', 'disk_count', 'cpu', 'cpu_count', 'datacenter', 'bandwidth', 'next_reduce'])
         .default('price')
     )
     .option('--desc', 'Sort in descending order')
@@ -86,19 +102,26 @@ export function registerAuctionCommands(parent: Command): void {
         const filters: AuctionFilterOptions = {
           minPrice: parseNum(options.minPrice),
           maxPrice: parseNum(options.maxPrice),
+          maxHourlyPrice: parseNum(options.maxHourlyPrice),
           minRam: parseNum(options.minRam),
           maxRam: parseNum(options.maxRam),
           cpu: options.cpu,
           datacenter: options.datacenter,
           minDiskSize: parseNum(options.minDiskSize),
+          maxDiskSize: parseNum(options.maxDiskSize),
           minDiskCount: parseNum(options.minDiskCount),
+          maxDiskCount: parseNum(options.maxDiskCount),
           diskType: options.diskType,
+          minBandwidth: parseNum(options.minBandwidth),
           ecc: options.ecc ? true : undefined,
           gpu: options.gpu ? true : undefined,
           inic: options.inic ? true : undefined,
+          highio: options.highio ? true : undefined,
+          specials: options.specials,
           fixedPrice: options.fixedPrice ? true : options.auctionOnly ? false : undefined,
-          maxSetupPrice: parseNum(options.maxSetupPrice),
+          maxSetupPrice: options.noSetupFee ? 0 : parseNum(options.maxSetupPrice),
           minCpuCount: parseNum(options.minCpuCount),
+          maxCpuCount: parseNum(options.maxCpuCount),
           text: options.search,
         };
 
