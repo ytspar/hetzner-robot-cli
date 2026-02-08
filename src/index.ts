@@ -164,3 +164,6 @@ export {
   formatDateTime,
   formatJson,
 } from './shared/formatter.js';
+
+// Reference documentation (for LLM context)
+export { generateReference } from './shared/reference.js';

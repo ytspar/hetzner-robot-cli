@@ -49,12 +49,23 @@ function parseNum(val: string | undefined): number | undefined {
 }
 
 export function registerAuctionCommands(parent: Command): void {
-  const auction = parent.command('auction').description('Server auction monitoring (public, no auth required)');
+  const auction = parent.command('auction').description(
+    'Server auction monitoring (public, no auth required).\n' +
+    'Fetches ~1000+ servers from Hetzner\'s public auction endpoint and filters/sorts client-side.\n' +
+    'Typical ranges: 30-450 EUR/mo, 32-1024 GB RAM, NVMe/SATA/HDD, datacenters in FSN/HEL/NBG.'
+  );
 
   auction
     .command('list')
     .alias('ls')
-    .description('List and filter auction servers')
+    .description(
+      'List and filter auction servers.\n' +
+      'All filters are optional and combinable. String filters (cpu, datacenter, specials, search) are case-insensitive substrings.\n' +
+      'Examples:\n' +
+      '  hetzner auction list --cpu epyc --ecc --disk-type nvme --datacenter HEL --sort price\n' +
+      '  hetzner auction list --gpu --max-price 150 --json\n' +
+      '  hetzner auction list --auction-only --sort next_reduce --limit 20'
+    )
     .option('--min-price <n>', 'Minimum monthly price')
     .option('--max-price <n>', 'Maximum monthly price')
     .option('--max-hourly-price <n>', 'Maximum hourly price')
@@ -146,7 +157,12 @@ export function registerAuctionCommands(parent: Command): void {
 
   auction
     .command('show <id>')
-    .description('Show detailed info for an auction server')
+    .description(
+      'Show detailed info for an auction server.\n' +
+      'Displays CPU, RAM, disk breakdown by type, datacenter, pricing (monthly + hourly),\n' +
+      'specials (GPU, iNIC, ECC), IP pricing, and full description.\n' +
+      'Example: hetzner auction show 2919866'
+    )
     .addOption(
       new Option('--currency <currency>', 'Price currency')
         .choices(['EUR', 'USD'])
