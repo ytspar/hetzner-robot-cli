@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { input } from '@inquirer/prompts';
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { asyncAction, output, confirmAction, type ActionOptions } from '../../shared/helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as robotFmt from '../formatter.js';

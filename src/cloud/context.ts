@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 const CONFIG_DIR = join(homedir(), '.hetzner-cli');
 const CONTEXTS_FILE = join(CONFIG_DIR, 'cloud-contexts.json');
@@ -68,6 +68,7 @@ async function storeToken(contextName: string, token: string): Promise<boolean> 
       // Fall through to file storage
     }
   }
+  console.warn('Warning: System keychain unavailable. Cloud token will be stored in plaintext at ~/.hetzner-cli/cloud-contexts.json');
   return false;
 }
 

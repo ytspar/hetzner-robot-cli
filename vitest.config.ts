@@ -7,7 +7,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'text-summary', 'html'],
+      reporter: ['text', 'text-summary', 'html', 'json'],
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.test.ts',
@@ -18,6 +18,7 @@ export default defineConfig({
         'src/config.ts',
         'src/formatter.ts',
         'src/shared/helpers.ts',
+        'src/shared/reference.ts',
         'src/robot/types.ts',
         'src/robot/commands/**',
         'src/cloud/types.ts',
@@ -25,10 +26,10 @@ export default defineConfig({
         'src/auction/commands.ts',
       ],
       thresholds: {
-        lines: 95,
-        functions: 90,
-        branches: 75,
-        statements: 95,
+        lines: 99,
+        functions: 100,
+        branches: 98,
+        statements: 99,
       },
     },
   },

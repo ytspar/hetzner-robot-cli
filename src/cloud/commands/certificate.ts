@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';

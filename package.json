@@ -47,7 +47,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
@@ -78,32 +78,33 @@
     "firewall",
     "volume"
   ],
-  "author": "",
+  "sideEffects": false,
+  "author": "ytspar",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ytspar/hetzner-robot-cli.git"
+    "url": "git+https://github.com/ytspar/hetzner-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/ytspar/hetzner-robot-cli/issues"
+    "url": "https://github.com/ytspar/hetzner-cli/issues"
   },
-  "homepage": "https://github.com/ytspar/hetzner-robot-cli#readme",
+  "homepage": "https://github.com/ytspar/hetzner-cli#readme",
   "dependencies": {
-    "@inquirer/prompts": "^7.0.0",
+    "@inquirer/prompts": "^8.2.0",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.2",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.2.4",
     "keytar": "^7.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.0.0",
     "eslint-plugin-security": "^3.0.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=18.0.0"

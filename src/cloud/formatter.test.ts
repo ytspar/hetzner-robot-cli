@@ -581,6 +581,34 @@ describe('Cloud Formatters', () => {
       const result = formatCloudServerDetails(makeCloudServer({ image: null }));
       expect(result).toContain('-');
     });
+
+    it('should fall back to image id when image name is null', () => {
+      const result = formatCloudServerDetails(makeCloudServer({
+        image: makeImage({ name: null, id: 999 }),
+      }));
+      expect(result).toContain('999');
+    });
+
+    it('should show dash when ipv4 is null in details', () => {
+      const result = formatCloudServerDetails(makeCloudServer({
+        public_net: { ipv4: null, ipv6: null, floating_ips: [], firewalls: [] },
+      }));
+      const lines = result.split('\n');
+      const ipv4Line = lines.find(l => l.includes('IPv4'));
+      expect(ipv4Line).toContain('-');
+      const ipv6Line = lines.find(l => l.includes('IPv6'));
+      expect(ipv6Line).toContain('-');
+    });
+
+    it('should show dash for empty alias_ips in private networks', () => {
+      const result = formatCloudServerDetails(makeCloudServer({
+        private_net: [{ network: 456, ip: '10.0.0.5', alias_ips: [], mac_address: 'aa:bb:cc:dd:ee:ff' }],
+      }));
+      expect(result).toContain('Private Networks:');
+      expect(result).toContain('456');
+      expect(result).toContain('10.0.0.5');
+      expect(result).toContain('-');
+    });
   });
 
   describe('formatNetworkList', () => {
@@ -665,6 +693,20 @@ describe('Cloud Formatters', () => {
       expect(result).toContain('icmp');
       expect(result).toContain('any');
     });
+
+    it('should show dash for empty source_ips and null description', () => {
+      const result = formatCloudFirewallDetails(makeFirewall({
+        rules: [
+          { direction: 'out', protocol: 'tcp', port: '443', source_ips: [], destination_ips: ['0.0.0.0/0'], description: null },
+        ],
+      }));
+      expect(result).toContain('Rules:');
+      expect(result).toContain('out');
+      expect(result).toContain('443');
+      // source_ips.join(', ').substring(0, 30) || '-' should be '-'
+      // description || '-' should be '-'
+      expect(result).toContain('-');
+    });
   });
 
   describe('formatFloatingIpList', () => {
@@ -703,6 +745,18 @@ describe('Cloud Formatters', () => {
       const result = formatFloatingIpDetails(makeFloatingIp({ protection: { delete: true } }));
       expect(result).toContain('Delete protected');
     });
+
+    it('should show dash for empty description', () => {
+      const result = formatFloatingIpDetails(makeFloatingIp({ description: '' }));
+      const lines = result.split('\n');
+      const descLine = lines.find(l => l.includes('Description'));
+      expect(descLine).toContain('-');
+    });
+
+    it('should show blocked status in details', () => {
+      const result = formatFloatingIpDetails(makeFloatingIp({ blocked: true }));
+      expect(result).toContain('Yes');
+    });
   });
 
   describe('formatPrimaryIpList', () => {
@@ -740,6 +794,18 @@ describe('Cloud Formatters', () => {
     it('should show protection status', () => {
       const result = formatPrimaryIpDetails(makePrimaryIp({ protection: { delete: true } }));
       expect(result).toContain('Delete protected');
+    });
+
+    it('should show auto delete enabled in details', () => {
+      const result = formatPrimaryIpDetails(makePrimaryIp({ auto_delete: true }));
+      const lines = result.split('\n');
+      const autoDeleteLine = lines.find(l => l.includes('Auto Delete'));
+      expect(autoDeleteLine).toContain('Yes');
+    });
+
+    it('should show blocked status in details', () => {
+      const result = formatPrimaryIpDetails(makePrimaryIp({ blocked: true }));
+      expect(result).toContain('Yes');
     });
   });
 
@@ -783,6 +849,18 @@ describe('Cloud Formatters', () => {
       const lines = result.split('\n');
       const deviceLine = lines.find(l => l.includes('Linux Device'));
       expect(deviceLine).toContain('-');
+    });
+
+    it('should show dash for null format in details', () => {
+      const result = formatVolumeDetails(makeVolume({ format: null }));
+      const lines = result.split('\n');
+      const formatLine = lines.find(l => l.includes('Format'));
+      expect(formatLine).toContain('-');
+    });
+
+    it('should show protection status in details', () => {
+      const result = formatVolumeDetails(makeVolume({ protection: { delete: true } }));
+      expect(result).toContain('Delete protected');
     });
   });
 
@@ -835,6 +913,42 @@ describe('Cloud Formatters', () => {
       const result = formatLoadBalancerDetails(makeLoadBalancer({ protection: { delete: true } }));
       expect(result).toContain('Delete protected');
     });
+
+    it('should show public net disabled', () => {
+      const result = formatLoadBalancerDetails(makeLoadBalancer({
+        public_net: {
+          enabled: false,
+          ipv4: { ip: '1.2.3.4', dns_ptr: 'lb.example.com' },
+          ipv6: { ip: '2001:db8::1', dns_ptr: 'lb.example.com' },
+        },
+      }));
+      expect(result).toContain('Disabled');
+    });
+
+    it('should show proxyprotocol enabled in services', () => {
+      const result = formatLoadBalancerDetails(makeLoadBalancer({
+        services: [{
+          protocol: 'tcp',
+          listen_port: 443,
+          destination_port: 8443,
+          proxyprotocol: true,
+          health_check: {
+            protocol: 'tcp',
+            port: 8443,
+            interval: 15,
+            timeout: 10,
+            retries: 3,
+          },
+        }],
+      }));
+      expect(result).toContain('Services:');
+      expect(result).toContain('tcp');
+      expect(result).toContain('443');
+      expect(result).toContain('8443');
+      const lines = result.split('\n');
+      const svcLine = lines.find(l => l.includes('443') && l.includes('8443'));
+      expect(svcLine).toContain('Yes');
+    });
   });
 
   describe('formatImageList', () => {
@@ -883,6 +997,27 @@ describe('Cloud Formatters', () => {
     it('should show protection status', () => {
       const result = formatImageDetails(makeImage({ protection: { delete: true } }));
       expect(result).toContain('Delete protected');
+    });
+
+    it('should show dash for null name in details', () => {
+      const result = formatImageDetails(makeImage({ name: null }));
+      const lines = result.split('\n');
+      const nameLine = lines.find(l => l.includes('Name'));
+      expect(nameLine).toContain('-');
+    });
+
+    it('should show dash for null os_version in details', () => {
+      const result = formatImageDetails(makeImage({ os_version: null }));
+      const lines = result.split('\n');
+      const versionLine = lines.find(l => l.includes('OS Version'));
+      expect(versionLine).toContain('-');
+    });
+
+    it('should show rapid_deploy as No when false', () => {
+      const result = formatImageDetails(makeImage({ rapid_deploy: false }));
+      const lines = result.split('\n');
+      const rapidLine = lines.find(l => l.includes('Rapid Deploy'));
+      expect(rapidLine).toContain('No');
     });
   });
 

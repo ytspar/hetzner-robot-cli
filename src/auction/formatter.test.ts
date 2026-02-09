@@ -381,6 +381,24 @@ describe('formatAuctionDetails', () => {
     expect(result).toContain('2x NVMe SSD 1 TB');
   });
 
+  it('should omit description section when description is empty', () => {
+    const result = formatAuctionDetails(makeServer({ description: [] }));
+    expect(result).not.toContain('Description');
+  });
+
+  it('should show dash for empty hdd_hr array', () => {
+    const result = formatAuctionDetails(makeServer({
+      hdd_hr: [],
+    }));
+    // 'Disk Details' row should have '-' as value when hdd_hr is empty
+    expect(result).toContain('Disk Details');
+    // The '-' fallback from `hdd_hr.join(', ') || '-'`
+    const lines = result.split('\n');
+    const diskDetailsLine = lines.find(l => l.includes('Disk Details'));
+    expect(diskDetailsLine).toBeDefined();
+    expect(diskDetailsLine).toContain('-');
+  });
+
   it('should show datacenter location and code', () => {
     const result = formatAuctionDetails(makeServer({
       datacenter: 'HEL1-DC4',

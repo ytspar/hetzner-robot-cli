@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 // Mock modules before imports
-vi.mock('fs', () => ({
+vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('os', () => ({
+vi.mock('node:os', () => ({
   homedir: vi.fn(() => '/home/testuser'),
 }));
 
@@ -242,6 +242,18 @@ describe('Cloud Context', () => {
       });
 
       expect(getActiveContext()).toBe('prod');
+    });
+  });
+
+  describe('loadContexts error handling', () => {
+    it('should return default config when JSON parse fails', () => {
+      mockExistsSync.mockImplementation((p) =>
+        String(p) === CONTEXTS_FILE || String(p) === CONFIG_DIR
+      );
+      mockReadFileSync.mockReturnValue('not valid json {{{');
+
+      const result = listContexts();
+      expect(result).toEqual([]);
     });
   });
 

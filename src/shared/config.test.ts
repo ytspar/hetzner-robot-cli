@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 // Mock fs and os modules
-vi.mock('fs', () => ({
+vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('os', () => ({
+vi.mock('node:os', () => ({
   homedir: vi.fn(() => '/home/testuser'),
 }));
 
@@ -407,6 +407,24 @@ describe('Config Module', () => {
 
       expect(result).toEqual({ user: 'envuser', password: 'envpass' });
     });
+
+    it('should fall back to promptLogin when no credentials available', async () => {
+      // No env vars, no keychain, no file
+      mockKeytarGetPassword.mockResolvedValue(null);
+      mockExistsSync.mockReturnValue(false);
+
+      // promptLogin will prompt for credentials
+      mockInput.mockResolvedValue('newuser');
+      mockPassword.mockResolvedValue('newpass');
+      mockConfirm.mockResolvedValue(false);
+
+      const { requireCredentials } = await import('./config.js');
+      const result = await requireCredentials();
+
+      expect(result).toEqual({ user: 'newuser', password: 'newpass' });
+      expect(mockInput).toHaveBeenCalled();
+      expect(mockPassword).toHaveBeenCalled();
+    });
   });
 
   describe('promptLogin', () => {
@@ -454,6 +472,36 @@ describe('Config Module', () => {
       expect(result).toEqual({ user: 'promptuser', password: 'promptpass' });
       expect(mockWriteFileSync).not.toHaveBeenCalled();
       expect(mockKeytarSetPassword).not.toHaveBeenCalled();
+    });
+
+    it('should validate username is not empty', async () => {
+      mockInput.mockResolvedValue('promptuser');
+      mockPassword.mockResolvedValue('promptpass');
+      mockConfirm.mockResolvedValue(false);
+      mockKeytarGetPassword.mockResolvedValue(null);
+      mockExistsSync.mockReturnValue(false);
+
+      await promptLogin();
+
+      // Extract the validate function passed to input()
+      const inputCall = mockInput.mock.calls[0][0] as { validate: (v: string) => string | boolean };
+      expect(inputCall.validate('')).toBe('Username is required');
+      expect(inputCall.validate('user')).toBe(true);
+    });
+
+    it('should validate password is not empty', async () => {
+      mockInput.mockResolvedValue('promptuser');
+      mockPassword.mockResolvedValue('promptpass');
+      mockConfirm.mockResolvedValue(false);
+      mockKeytarGetPassword.mockResolvedValue(null);
+      mockExistsSync.mockReturnValue(false);
+
+      await promptLogin();
+
+      // Extract the validate function passed to password()
+      const passwordCall = mockPassword.mock.calls[0][0] as { validate: (v: string) => string | boolean };
+      expect(passwordCall.validate('')).toBe('Password is required');
+      expect(passwordCall.validate('pass')).toBe(true);
     });
 
     it('should offer migration when file credentials exist and keychain available', async () => {

@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { input, password as passwordPrompt, confirm } from '@inquirer/prompts';
 
 config();
@@ -277,6 +277,7 @@ export async function promptLogin(): Promise<{ user: string; password: string }>
       // Fall back to file storage
       saveConfig({ user, password });
       console.log('');
+      console.warn('Warning: System keychain unavailable. Credentials stored in plaintext at ~/.hetzner-cli/config.json');
       console.log('Credentials saved to config file.');
     } else {
       console.log('');

@@ -19,6 +19,16 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Coverage
+coverage/
+
+# Security
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+
 # Logs
 *.log
 npm-debug.log*

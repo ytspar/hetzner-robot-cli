@@ -1402,6 +1402,531 @@ describe('HetznerRobotClient', () => {
     });
   });
 
+  describe('encodeParams edge cases', () => {
+    it('should handle undefined values by skipping them', async () => {
+      // updateVSwitch with only name (vlan undefined) triggers encodeParams with undefined
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ vswitch: { id: 1 } }),
+      });
+
+      await client.updateVSwitch(1, 'test-name');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/vswitch/1',
+        expect.objectContaining({
+          method: 'POST',
+          body: 'name=test-name',
+        })
+      );
+    });
+
+    it('should handle boolean values by converting to string', async () => {
+      // createFirewallTemplate passes boolean params (filter_ipv6, whitelist_hos, is_default)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall_template: { id: 2 } }),
+      });
+
+      await client.createFirewallTemplate('bool-test', false, true, false);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toContain('filter_ipv6=false');
+      expect(body).toContain('whitelist_hos=true');
+      expect(body).toContain('is_default=false');
+    });
+
+    it('should handle array values by encoding each with [] suffix', async () => {
+      // getTraffic with multiple IPs triggers the array branch
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ traffic: { data: [] } }),
+      });
+
+      await client.getTraffic(['1.2.3.4', '5.6.7.8'], [], '2024-01-01', '2024-01-31', 'month');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toContain('ip[]=1.2.3.4');
+      expect(body).toContain('ip[]=5.6.7.8');
+    });
+  });
+
+  describe('error handling edge cases', () => {
+    it('should handle error response with missing code', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: () => Promise.resolve({ error: { message: 'Access denied' } }),
+      });
+
+      await expect(client.listServers()).rejects.toThrow('ERROR: Access denied');
+    });
+
+    it('should handle error response with no error object', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: () => Promise.resolve({ some_other_field: 'value' }),
+      });
+
+      await expect(client.listServers()).rejects.toThrow('HTTP 400: Bad Request');
+    });
+
+    it('should handle error response with missing message', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: () => Promise.resolve({ error: { code: 'FORBIDDEN' } }),
+      });
+
+      await expect(client.listServers()).rejects.toThrow('FORBIDDEN: Unknown error');
+    });
+  });
+
+  describe('SSH Keys - getSshKey', () => {
+    it('should get SSH key by fingerprint', async () => {
+      const mockKey = { key: { fingerprint: 'ab:cd:ef:12:34', name: 'my-key', type: 'RSA', size: 4096, data: 'ssh-rsa AAAA...' } };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockKey),
+      });
+
+      const result = await client.getSshKey('ab:cd:ef:12:34');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/key/ab:cd:ef:12:34',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockKey);
+    });
+  });
+
+  describe('Firewall Templates - additional coverage', () => {
+    it('should get firewall template by ID', async () => {
+      const mockTemplate = { firewall_template: { id: 5, name: 'test-template' } };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockTemplate),
+      });
+
+      const result = await client.getFirewallTemplate(5);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/firewall/template/5',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockTemplate);
+    });
+
+    it('should create firewall template with rules', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall_template: { id: 2 } }),
+      });
+
+      const rules = { input: [{ ip_version: 'ipv4', name: 'Allow SSH', dst_ip: null, dst_port: '22', src_ip: null, src_port: null, action: 'accept' as const, protocol: 'tcp', tcp_flags: null }] };
+      await client.createFirewallTemplate('with-rules', true, false, true, rules);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toContain('name=with-rules');
+      expect(body).toContain('rules%5Binput%5D=');
+      expect(body).toContain(encodeURIComponent(JSON.stringify(rules.input)));
+    });
+
+    it('should update firewall template with rules', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall_template: { id: 1 } }),
+      });
+
+      const rules = { input: [{ ip_version: 'ipv4', name: 'Allow HTTP', dst_ip: null, dst_port: '80', src_ip: null, src_port: null, action: 'accept' as const, protocol: 'tcp', tcp_flags: null }] };
+      await client.updateFirewallTemplate(1, 'updated-name', true, false, false, rules);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toContain('name=updated-name');
+      expect(body).toContain('rules%5Binput%5D=');
+      expect(body).toContain(encodeURIComponent(JSON.stringify(rules.input)));
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/firewall/template/1',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+
+    it('should update firewall with rules', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall: { status: 'active' } }),
+      });
+
+      const rules = { input: [{ ip_version: 'ipv4', name: 'Allow HTTPS', dst_ip: null, dst_port: '443', src_ip: null, src_port: null, action: 'accept' as const, protocol: 'tcp', tcp_flags: null }] };
+      await client.updateFirewall(123, 'active', rules);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toContain('status=active');
+      expect(body).toContain('rules%5Binput%5D=');
+      expect(body).toContain(encodeURIComponent(JSON.stringify(rules.input)));
+    });
+  });
+
+  describe('vSwitch - additional coverage', () => {
+    it('should get vSwitch by ID', async () => {
+      const mockVSwitch = { vswitch: { id: 42, name: 'my-vswitch', vlan: 4000 } };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockVSwitch),
+      });
+
+      const result = await client.getVSwitch(42);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/vswitch/42',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockVSwitch);
+    });
+
+    it('should delete vSwitch with cancellation date', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+      });
+
+      await client.deleteVSwitch(1, '2025-12-31');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toContain('cancellation_date=2025-12-31');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/vswitch/1',
+        expect.objectContaining({ method: 'DELETE' })
+      );
+    });
+  });
+
+  describe('Storage Box - additional coverage', () => {
+    it('should get storage box by ID', async () => {
+      const mockBox = { storagebox: { id: 10, name: 'my-box', login: 'u12345', product: 'BX11' } };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBox),
+      });
+
+      const result = await client.getStorageBox(10);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/storagebox/10',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockBox);
+    });
+  });
+
+  describe('Server Transactions - additional coverage', () => {
+    it('should get server transaction by ID', async () => {
+      const mockTransaction = { transaction: { id: 'TX-123', product_id: 'AX41', status: 'ready' } };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockTransaction),
+      });
+
+      const result = await client.getServerTransaction('TX-123');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://robot-ws.your-server.de/order/server/transaction/TX-123',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockTransaction);
+    });
+  });
+
+  describe('Optional parameter branches', () => {
+    it('should get traffic with empty IPs and subnets', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ traffic: { data: [] } }),
+      });
+
+      await client.getTraffic([], [], '2024-01-01', '2024-01-31', 'month');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).not.toContain('ip');
+      expect(body).not.toContain('subnet');
+      expect(body).toContain('type=month');
+    });
+
+    it('should order server without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ transaction: { id: 'TX-2' } }),
+      });
+
+      await client.orderServer('AX41');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('product_id=AX41');
+    });
+
+    it('should order server market without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ transaction: { id: 'TX-3' } }),
+      });
+
+      await client.orderServerMarket(12345);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('product_id=12345');
+    });
+
+    it('should update storage box with no optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ storagebox: { id: 1 } }),
+      });
+
+      await client.updateStorageBox(1);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should create storage box subaccount with minimal params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ subaccount: { username: 'sub1' } }),
+      });
+
+      await client.createStorageBoxSubaccount(1, '/home/user');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('homedirectory=%2Fhome%2Fuser');
+    });
+
+    it('should update storage box subaccount with no optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ subaccount: { username: 'sub1' } }),
+      });
+
+      await client.updateStorageBoxSubaccount(1, 'sub1');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should update snapshot plan with only status', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ snapshotplan: { status: 'disabled' } }),
+      });
+
+      await client.updateStorageBoxSnapshotPlan(1, 'disabled');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('status=disabled');
+    });
+
+    it('should cancel server without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ cancellation: { cancelled: true } }),
+      });
+
+      await client.cancelServer(123);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should activate rescue without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ rescue: { active: true } }),
+      });
+
+      await client.activateRescue(123, 'linux');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('os=linux');
+    });
+
+    it('should activate linux without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ linux: { active: true } }),
+      });
+
+      await client.activateLinux(123, 'Debian-12');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('dist=Debian-12');
+    });
+
+    it('should activate vnc without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ vnc: { active: true } }),
+      });
+
+      await client.activateVnc(123, 'Debian-12');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('dist=Debian-12');
+    });
+
+    it('should activate windows without optional lang', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ windows: { active: true } }),
+      });
+
+      await client.activateWindows(123, 'standard');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('dist=standard');
+    });
+
+    it('should update firewall without rules', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall: { status: 'disabled' } }),
+      });
+
+      await client.updateFirewall(123, 'disabled');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('status=disabled');
+    });
+
+    it('should create firewall template without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall_template: { id: 3 } }),
+      });
+
+      await client.createFirewallTemplate('minimal-template');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('name=minimal-template');
+    });
+
+    it('should update firewall template without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ firewall_template: { id: 1 } }),
+      });
+
+      await client.updateFirewallTemplate(1);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should update vSwitch without optional params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ vswitch: { id: 1 } }),
+      });
+
+      await client.updateVSwitch(1);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should delete vSwitch without cancellation date', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+      });
+
+      await client.deleteVSwitch(2);
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should update IP without optional traffic params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ip: { ip: '1.2.3.4' } }),
+      });
+
+      await client.updateIp('1.2.3.4');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+
+    it('should update subnet without optional traffic params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ subnet: {} }),
+      });
+
+      await client.updateSubnet('10.0.0.0');
+
+      const call = mockFetch.mock.calls[0] as [string, RequestInit];
+      const body = call[1].body as string;
+      expect(body).toBe('');
+    });
+  });
+
   describe('Failover Additional Methods', () => {
     it('should get failover', async () => {
       mockFetch.mockResolvedValueOnce({

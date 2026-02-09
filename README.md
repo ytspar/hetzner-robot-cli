@@ -4,7 +4,7 @@
 
 # hetzner-cli
 
-[![npm version](https://badge.fury.io/js/hetzner-robot-cli.svg)](https://www.npmjs.com/package/hetzner-robot-cli)
+[![npm version](https://badge.fury.io/js/hetzner-cli.svg)](https://www.npmjs.com/package/hetzner-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Unified CLI and Node.js library for Hetzner's three APIs:
@@ -31,6 +31,7 @@ Unified CLI and Node.js library for Hetzner's three APIs:
   - [Built-in Reference](#built-in-reference)
 - [Library Usage](#library-usage)
   - [Robot Client](#robot-client)
+  - [Cloud Client](#cloud-client)
   - [Auction Client](#auction-client)
   - [Type Exports](#type-exports)
 - [API Reference](#api-reference)
@@ -538,6 +539,41 @@ const fw = await client.getFirewall(123456);
 await client.updateFirewall(123456, 'active');
 ```
 
+### Cloud Client
+
+```typescript
+import { HetznerCloudClient } from 'hetzner-cli';
+
+const client = new HetznerCloudClient('hcloud_xxxxxx');
+
+// List servers
+const { servers } = await client.listServers();
+
+// Create a server
+const result = await client.createServer({
+  name: 'web1',
+  server_type: 'cx22',
+  image: 'ubuntu-22.04',
+  location: 'fsn1',
+});
+
+// Networks
+const { networks } = await client.listNetworks();
+await client.createNetwork({ name: 'my-net', ip_range: '10.0.0.0/16' });
+
+// Volumes
+const { volumes } = await client.listVolumes();
+await client.createVolume({ name: 'data', size: 50, location: 'fsn1' });
+
+// Load Balancers
+const { load_balancers } = await client.listLoadBalancers();
+
+// Firewalls, Floating IPs, SSH Keys, Images, etc.
+const { firewalls } = await client.listFirewalls();
+const { floating_ips } = await client.listFloatingIps();
+const { ssh_keys } = await client.listSshKeys();
+```
+
 ### Auction Client
 
 ```typescript
@@ -575,6 +611,14 @@ import type {
   VSwitch, StorageBox,
   Traffic, Wol,
   ServerProduct, ServerMarketProduct,
+
+  // Cloud types
+  CloudServer, CloudAction, CloudFirewall, CloudFirewallRule,
+  CloudSshKey, Network, NetworkSubnet, NetworkRoute,
+  FloatingIp, PrimaryIp, Volume, Image,
+  LoadBalancer, LoadBalancerType, LoadBalancerTarget, LoadBalancerService,
+  Certificate, PlacementGroup, Datacenter, Location,
+  ServerType, ISO, Labels,
 
   // Auction types
   AuctionServer, AuctionDiskData, AuctionIpPrice,
@@ -702,6 +746,87 @@ import type {
 | `getServerTransaction(id)` | Get transaction |
 | `listServerTransactions()` | List transactions |
 
+### HetznerCloudClient Methods
+
+#### Context Management
+
+| Function | Description |
+|----------|-------------|
+| `createContext(name, token)` | Create a named context (stores token) |
+| `useContext(name)` | Switch active context |
+| `deleteContext(name)` | Delete a context |
+| `listContexts()` | List all contexts |
+| `getActiveContext()` | Get active context name |
+| `resolveToken(opts)` | Resolve token (flag > env > context) |
+
+#### Servers
+
+| Method | Description |
+|--------|-------------|
+| `listServers(params?)` | List cloud servers |
+| `getServer(id)` | Get server details |
+| `createServer(data)` | Create a server |
+| `deleteServer(id)` | Delete a server |
+| `updateServer(id, data)` | Update server name/labels |
+| `poweronServer(id)` | Power on |
+| `poweroffServer(id)` | Hard power off |
+| `rebootServer(id)` | Soft reboot |
+| `resetServer(id)` | Hard reset |
+| `shutdownServer(id)` | Graceful shutdown |
+| `rebuildServer(id, image)` | Rebuild with image |
+| `changeServerType(id, type, disk?)` | Resize server |
+| `enableRescue(id, type?, keys?)` | Enable rescue mode |
+| `disableRescue(id)` | Disable rescue mode |
+| `enableBackup(id)` | Enable backups |
+| `disableBackup(id)` | Disable backups |
+| `createImage(id, desc?, type?)` | Create snapshot |
+| `attachIso(id, iso)` | Attach ISO |
+| `detachIso(id)` | Detach ISO |
+| `resetPassword(id)` | Reset root password |
+| `setRdns(id, ip, ptr)` | Set reverse DNS |
+| `changeProtection(id, opts)` | Change protection |
+| `requestConsole(id)` | Get VNC console URL |
+| `attachToNetwork(id, network, ip?)` | Attach to network |
+| `detachFromNetwork(id, network)` | Detach from network |
+
+#### Networks
+
+| Method | Description |
+|--------|-------------|
+| `listNetworks()` | List networks |
+| `getNetwork(id)` | Get network details |
+| `createNetwork(data)` | Create a network |
+| `deleteNetwork(id)` | Delete a network |
+| `addSubnet(id, subnet)` | Add subnet |
+| `deleteSubnet(id, subnet)` | Delete subnet |
+| `addRoute(id, route)` | Add route |
+| `deleteRoute(id, route)` | Delete route |
+| `changeIpRange(id, range)` | Change IP range |
+
+#### Firewalls, IPs, Volumes, Load Balancers
+
+| Method | Description |
+|--------|-------------|
+| `listFirewalls()` / `getFirewall(id)` / `createFirewall(data)` / `deleteFirewall(id)` | Firewall CRUD |
+| `listFloatingIps()` / `getFloatingIp(id)` / `createFloatingIp(data)` / `deleteFloatingIp(id)` | Floating IP CRUD |
+| `listPrimaryIps()` / `getPrimaryIp(id)` / `createPrimaryIp(data)` / `deletePrimaryIp(id)` | Primary IP CRUD |
+| `listVolumes()` / `getVolume(id)` / `createVolume(data)` / `deleteVolume(id)` | Volume CRUD |
+| `listLoadBalancers()` / `getLoadBalancer(id)` / `createLoadBalancer(data)` / `deleteLoadBalancer(id)` | Load Balancer CRUD |
+| `listImages()` / `getImage(id)` / `updateImage(id, data)` / `deleteImage(id)` | Image management |
+| `listSshKeys()` / `getSshKey(id)` / `createSshKey(data)` / `deleteSshKey(id)` | SSH key CRUD |
+| `listCertificates()` / `getCertificate(id)` / `createCertificate(data)` / `deleteCertificate(id)` | Certificate CRUD |
+| `listPlacementGroups()` / `getPlacementGroup(id)` / `createPlacementGroup(data)` / `deletePlacementGroup(id)` | Placement group CRUD |
+
+#### Reference Data (Read-Only)
+
+| Method | Description |
+|--------|-------------|
+| `listDatacenters()` / `getDatacenter(id)` | Datacenter info |
+| `listLocations()` / `getLocation(id)` | Location info |
+| `listServerTypes()` / `getServerType(id)` | Server type info |
+| `listLoadBalancerTypes()` / `getLoadBalancerType(id)` | LB type info |
+| `listIsos(params?)` / `getIso(id)` | ISO image info |
+
 ### Auction Functions
 
 | Function | Description |
@@ -741,7 +866,7 @@ Environment variables:
 ```bash
 npm install          # Install dependencies
 npm run build        # Compile TypeScript
-npm test             # Run tests (383 tests across 6 suites)
+npm test             # Run tests (740 tests across 12 suites)
 npm run test:coverage  # Run with coverage report
 npm run test:watch   # Watch mode
 ```
@@ -768,7 +893,7 @@ src/
 │   ├── types.ts               # Cloud type definitions
 │   ├── formatter.ts           # Cloud-specific formatters
 │   ├── helpers.ts             # Cloud action wrappers
-│   └── commands/              # CLI command modules (18 files)
+│   └── commands/              # CLI command modules (17 files)
 └── auction/
     ├── client.ts              # Auction fetch/filter/sort
     ├── formatter.ts           # Auction formatters

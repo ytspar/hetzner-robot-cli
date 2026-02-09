@@ -1,33 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 
-vi.mock('./context.js', () => ({
-  resolveToken: vi.fn(),
+vi.mock('./config.js', () => ({
+  requireCredentials: vi.fn(),
 }));
 
-vi.mock('./client.js', () => ({
+vi.mock('../robot/client.js', () => ({
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  HetznerCloudClient: vi.fn(function () {}),
+  HetznerRobotClient: vi.fn(function () {}),
 }));
 
 vi.mock('@inquirer/prompts', () => ({
   confirm: vi.fn(),
 }));
 
-vi.mock('../shared/formatter.js', () => ({
+vi.mock('./formatter.js', () => ({
   error: vi.fn((msg: string) => `ERROR: ${msg}`),
   formatJson: vi.fn((data: unknown) => JSON.stringify(data, null, 2)),
 }));
 
-import { cloudAction, cloudOutput, cloudConfirm } from './helpers.js';
-import { resolveToken } from './context.js';
-import { HetznerCloudClient } from './client.js';
+import { asyncAction, output, confirmAction } from './helpers.js';
+import { HetznerRobotClient } from '../robot/client.js';
 import { confirm } from '@inquirer/prompts';
 
-const mockResolveToken = vi.mocked(resolveToken);
 const mockConfirm = vi.mocked(confirm);
-const mockHetznerCloudClient = vi.mocked(HetznerCloudClient);
+const mockHetznerRobotClient = vi.mocked(HetznerRobotClient);
 
-describe('helpers', () => {
+describe('shared/helpers', () => {
   let mockExit: MockInstance;
 
   beforeEach(() => {
@@ -39,74 +37,65 @@ describe('helpers', () => {
     vi.restoreAllMocks();
   });
 
-  describe('cloudAction', () => {
-    it('should resolve token and create client', async () => {
-      mockResolveToken.mockResolvedValue('test-token');
-      const mockClient = {} as HetznerCloudClient;
-      mockHetznerCloudClient.mockImplementation(function () { return mockClient; } as () => HetznerCloudClient);
+  describe('asyncAction', () => {
+    // Note: getClient() caches the client at module level. The first test
+    // creates the client; subsequent tests reuse the cached instance.
+    // We test error handling via fn rejection rather than credential resolution.
+
+    it('should create client with flag credentials and call fn', async () => {
+      const mockClient = { _id: 'test' } as unknown as HetznerRobotClient;
+      mockHetznerRobotClient.mockImplementation(function () { return mockClient; } as () => HetznerRobotClient);
 
       const fn = vi.fn().mockResolvedValue(undefined);
-      const action = cloudAction(fn);
-      await action({ token: 'flag-token' });
+      const action = asyncAction(fn);
+      await action({ user: 'flag-user', password: 'flag-pass' });
 
-      expect(mockResolveToken).toHaveBeenCalledWith('flag-token');
-      expect(mockHetznerCloudClient).toHaveBeenCalledWith('test-token');
+      expect(mockHetznerRobotClient).toHaveBeenCalledWith('flag-user', 'flag-pass');
       expect(fn).toHaveBeenCalledWith(mockClient);
     });
 
     it('should pass through additional arguments before options', async () => {
-      mockResolveToken.mockResolvedValue('test-token');
-      const mockClient = {} as HetznerCloudClient;
-      mockHetznerCloudClient.mockImplementation(function () { return mockClient; } as () => HetznerCloudClient);
-
       const fn = vi.fn().mockResolvedValue(undefined);
-      const action = cloudAction<[string, number]>(fn);
-      await action('arg1', 42, { token: 'tok' });
+      const action = asyncAction<[string, number]>(fn);
+      await action('arg1', 42, { user: 'u', password: 'p' });
 
-      expect(fn).toHaveBeenCalledWith(mockClient, 'arg1', 42);
+      expect(fn).toHaveBeenCalledWith(expect.any(Object), 'arg1', 42);
     });
 
-    it('should handle Error and call process.exit(1)', async () => {
-      mockResolveToken.mockRejectedValue(new Error('Token not found'));
+    it('should handle Error from fn and call process.exit(1)', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(vi.fn());
+      const action = asyncAction(vi.fn().mockRejectedValue(new Error('Action failed')));
+      await action({ user: 'u', password: 'p' });
 
-      const action = cloudAction(vi.fn());
-      await action({});
-
-      expect(consoleSpy).toHaveBeenCalledWith('ERROR: Token not found');
+      expect(consoleSpy).toHaveBeenCalledWith('ERROR: Action failed');
       expect(mockExit).toHaveBeenCalledWith(1);
     });
 
     it('should handle ExitPromptError and exit with 0', async () => {
-      mockResolveToken.mockResolvedValue('tok');
-      mockHetznerCloudClient.mockImplementation(function () { return {} as HetznerCloudClient; } as () => HetznerCloudClient);
-
       const exitErr = new Error('ExitPromptError');
       exitErr.name = 'ExitPromptError';
-      const action = cloudAction(vi.fn().mockRejectedValue(exitErr));
-      await action({});
+      const action = asyncAction(vi.fn().mockRejectedValue(exitErr));
+      await action({ user: 'u', password: 'p' });
 
       expect(mockExit).toHaveBeenCalledWith(0);
     });
 
     it('should handle unknown error type', async () => {
-      mockResolveToken.mockRejectedValue('string error');
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(vi.fn());
-
-      const action = cloudAction(vi.fn());
-      await action({});
+      const action = asyncAction(vi.fn().mockRejectedValue('string error'));
+      await action({ user: 'u', password: 'p' });
 
       expect(consoleSpy).toHaveBeenCalledWith('ERROR: An unknown error occurred');
       expect(mockExit).toHaveBeenCalledWith(1);
     });
   });
 
-  describe('cloudOutput', () => {
+  describe('output', () => {
     it('should output JSON when json option is true', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(vi.fn());
       const formatter = vi.fn(() => 'formatted');
 
-      cloudOutput({ id: 1 }, formatter, { json: true });
+      output({ id: 1 }, formatter, { json: true });
 
       expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({ id: 1 }, null, 2));
       expect(formatter).not.toHaveBeenCalled();
@@ -116,7 +105,7 @@ describe('helpers', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(vi.fn());
       const formatter = vi.fn(() => 'formatted output');
 
-      cloudOutput({ id: 1 }, formatter, { json: false });
+      output({ id: 1 }, formatter, { json: false });
 
       expect(formatter).toHaveBeenCalledWith({ id: 1 });
       expect(consoleSpy).toHaveBeenCalledWith('formatted output');
@@ -126,16 +115,16 @@ describe('helpers', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(vi.fn());
       const formatter = vi.fn(() => 'table');
 
-      cloudOutput('data', formatter, {});
+      output('data', formatter, {});
 
       expect(formatter).toHaveBeenCalledWith('data');
       expect(consoleSpy).toHaveBeenCalledWith('table');
     });
   });
 
-  describe('cloudConfirm', () => {
+  describe('confirmAction', () => {
     it('should return true immediately when --yes is set', async () => {
-      const result = await cloudConfirm('Delete?', { yes: true });
+      const result = await confirmAction('Delete?', { yes: true });
 
       expect(result).toBe(true);
       expect(mockConfirm).not.toHaveBeenCalled();
@@ -144,7 +133,7 @@ describe('helpers', () => {
     it('should prompt and return true when confirmed', async () => {
       mockConfirm.mockResolvedValue(true);
 
-      const result = await cloudConfirm('Delete?', {});
+      const result = await confirmAction('Delete?', {});
 
       expect(mockConfirm).toHaveBeenCalledWith({ message: 'Delete?', default: false });
       expect(result).toBe(true);
@@ -154,7 +143,7 @@ describe('helpers', () => {
       mockConfirm.mockResolvedValue(false);
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(vi.fn());
 
-      const result = await cloudConfirm('Delete?', {});
+      const result = await confirmAction('Delete?', {});
 
       expect(result).toBe(false);
       expect(consoleSpy).toHaveBeenCalledWith('Aborted.');
@@ -163,7 +152,7 @@ describe('helpers', () => {
     it('should pass custom default value to confirm', async () => {
       mockConfirm.mockResolvedValue(true);
 
-      await cloudConfirm('Proceed?', {}, true);
+      await confirmAction('Proceed?', {}, true);
 
       expect(mockConfirm).toHaveBeenCalledWith({ message: 'Proceed?', default: true });
     });

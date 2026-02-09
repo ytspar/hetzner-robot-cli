@@ -103,10 +103,25 @@ describe('HetznerCloudClient', () => {
       await expect(client.listDatacenters()).rejects.toThrow('ERROR: Unknown error');
     });
 
+    it('should throw default HTTP error when error body has no error field', async () => {
+      mockFetch.mockResolvedValueOnce(errorResponse(422, 'Unprocessable Entity', {
+        message: 'oops',
+      }));
+
+      await expect(client.listDatacenters()).rejects.toThrow('HTTP 422: Unprocessable Entity');
+    });
+
     it('should return empty object for 204 response', async () => {
       mockFetch.mockResolvedValueOnce(noContentResponse());
 
       await expect(client.deleteNetwork(1)).resolves.not.toThrow();
+    });
+
+    it('should parse JSON body for non-204 success response', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ datacenter: { id: 1, name: 'fsn1-dc14' } }));
+
+      const result = await client.getDatacenter(1);
+      expect(result.name).toBe('fsn1-dc14');
     });
   });
 

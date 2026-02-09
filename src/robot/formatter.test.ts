@@ -1096,6 +1096,113 @@ describe('Formatter Module', () => {
       expect(result).toContain('vncpass');
       expect(result).toContain('Windows Install');
     });
+
+    it('should show active linux install with password', () => {
+      const config = {
+        rescue: null,
+        linux: {
+          server_ip: '1.2.3.4',
+          server_ipv6_net: '',
+          server_number: 123,
+          dist: ['Debian-12', 'Ubuntu-22.04'],
+          arch: [64],
+          lang: ['en'],
+          active: true,
+          password: 'linux-secret',
+          authorized_key: [],
+          host_key: [],
+        },
+        vnc: null,
+        windows: null,
+        plesk: null,
+        cpanel: null,
+      };
+
+      const result = formatBootConfig(config, 123);
+
+      expect(result).toContain('Linux Install');
+      expect(result).toContain('Yes'); // active
+      expect(result).toContain('linux-secret');
+    });
+
+    it('should show active windows install with password', () => {
+      const config = {
+        rescue: null,
+        linux: null,
+        vnc: null,
+        windows: {
+          server_ip: '1.2.3.4',
+          server_ipv6_net: '',
+          server_number: 123,
+          dist: ['standard'],
+          lang: ['en'],
+          active: true,
+          password: 'win-secret',
+        },
+        plesk: null,
+        cpanel: null,
+      };
+
+      const result = formatBootConfig(config, 123);
+
+      expect(result).toContain('Windows Install');
+      expect(result).toContain('Yes'); // active
+      expect(result).toContain('win-secret');
+    });
+
+    it('should show inactive VNC without password', () => {
+      const config = {
+        rescue: null,
+        linux: null,
+        vnc: {
+          server_ip: '1.2.3.4',
+          server_ipv6_net: '',
+          server_number: 123,
+          dist: ['Debian'],
+          arch: [64],
+          lang: ['en'],
+          active: false,
+          password: null,
+        },
+        windows: null,
+        plesk: null,
+        cpanel: null,
+      };
+
+      const result = formatBootConfig(config, 123);
+
+      expect(result).toContain('VNC Install');
+      expect(result).toContain('No'); // inactive
+      expect(result).not.toContain('Password');
+    });
+
+    it('should truncate linux distributions when more than 5', () => {
+      const config = {
+        rescue: null,
+        linux: {
+          server_ip: '1.2.3.4',
+          server_ipv6_net: '',
+          server_number: 123,
+          dist: ['Debian-12', 'Ubuntu-22.04', 'CentOS-8', 'Fedora-39', 'Arch', 'Gentoo', 'Slackware'],
+          arch: [64],
+          lang: ['en'],
+          active: false,
+          password: null,
+          authorized_key: [],
+          host_key: [],
+        },
+        vnc: null,
+        windows: null,
+        plesk: null,
+        cpanel: null,
+      };
+
+      const result = formatBootConfig(config, 123);
+
+      expect(result).toContain('Debian-12');
+      expect(result).toContain('...');
+      expect(result).not.toContain('Gentoo');
+    });
   });
 
   describe('formatServerDetails edge cases', () => {
@@ -1152,6 +1259,27 @@ describe('Formatter Module', () => {
       expect(result).toContain('Linux installation activated');
       expect(result).toContain('1.2.3.4');
       expect(result).toContain('linux-pass');
+    });
+
+    it('should format linux activation without password', () => {
+      const linux = {
+        server_ip: '1.2.3.4',
+        server_ipv6_net: '',
+        server_number: 123,
+        dist: ['Debian-12'],
+        arch: [64],
+        lang: ['en'],
+        active: true,
+        password: null,
+        authorized_key: [],
+        host_key: [],
+      };
+
+      const result = formatLinuxActivation(linux);
+
+      expect(result).toContain('Linux installation activated');
+      expect(result).toContain('1.2.3.4');
+      expect(result).not.toContain('Password:');
     });
   });
 
@@ -1218,6 +1346,145 @@ describe('Formatter Module', () => {
     });
   });
 
+  describe('formatStorageBoxList status branches', () => {
+    it('should show Cancelled status for cancelled storagebox', () => {
+      const boxes = [
+        {
+          storagebox: {
+            id: 2,
+            login: 'u999999',
+            name: '',
+            product: 'BX20',
+            cancelled: true,
+            locked: false,
+            location: 'NBG1',
+            linked_server: null,
+            paid_until: '2024-06-30',
+            disk_quota: 1073741824,
+            disk_usage: 100000,
+            disk_usage_data: 90000,
+            disk_usage_snapshots: 10000,
+            webdav: false,
+            samba: false,
+            ssh: false,
+            external_reachability: false,
+            zfs: false,
+            server: 'u999999.your-storagebox.de',
+            host_system: 'nbg1-storagebox1',
+          },
+        },
+      ];
+
+      const result = formatStorageBoxList(boxes);
+      expect(result).toContain('Cancelled');
+      // Name should fall back to login when name is empty
+      expect(result).toContain('u999999');
+    });
+
+    it('should show Locked status for locked storagebox', () => {
+      const boxes = [
+        {
+          storagebox: {
+            id: 3,
+            login: 'u888888',
+            name: 'locked-box',
+            product: 'BX30',
+            cancelled: false,
+            locked: true,
+            location: 'HEL1',
+            linked_server: null,
+            paid_until: '2024-09-30',
+            disk_quota: 2147483648,
+            disk_usage: 500000,
+            disk_usage_data: 400000,
+            disk_usage_snapshots: 100000,
+            webdav: true,
+            samba: false,
+            ssh: true,
+            external_reachability: false,
+            zfs: false,
+            server: 'u888888.your-storagebox.de',
+            host_system: 'hel1-storagebox1',
+          },
+        },
+      ];
+
+      const result = formatStorageBoxList(boxes);
+      expect(result).toContain('Locked');
+      expect(result).toContain('locked-box');
+    });
+
+    it('should show Active status for active storagebox', () => {
+      const boxes = [
+        {
+          storagebox: {
+            id: 4,
+            login: 'u777777',
+            name: 'active-box',
+            product: 'BX40',
+            cancelled: false,
+            locked: false,
+            location: 'FSN1',
+            linked_server: null,
+            paid_until: '2025-01-31',
+            disk_quota: 1073741824,
+            disk_usage: 536870912,
+            disk_usage_data: 500000000,
+            disk_usage_snapshots: 36870912,
+            webdav: true,
+            samba: true,
+            ssh: true,
+            external_reachability: true,
+            zfs: false,
+            server: 'u777777.your-storagebox.de',
+            host_system: 'fsn1-storagebox1',
+          },
+        },
+      ];
+
+      const result = formatStorageBoxList(boxes);
+      expect(result).toContain('Active');
+    });
+  });
+
+  describe('formatStorageBoxDetails ternary branches', () => {
+    it('should show cancelled and locked as Yes', () => {
+      const box = {
+        id: 5,
+        login: 'u666666',
+        name: '',
+        product: 'BX11',
+        cancelled: true,
+        locked: true,
+        location: 'FSN1',
+        linked_server: null,
+        paid_until: '2024-06-30',
+        disk_quota: 1073741824,
+        disk_usage: 536870912,
+        disk_usage_data: 500000000,
+        disk_usage_snapshots: 36870912,
+        webdav: false,
+        samba: false,
+        ssh: false,
+        external_reachability: false,
+        zfs: false,
+        server: 'u666666.your-storagebox.de',
+        host_system: 'fsn1-storagebox1',
+      };
+
+      const result = formatStorageBoxDetails(box);
+
+      // heading fallback: name is empty so uses login
+      expect(result).toContain('u666666');
+      // Name field shows '-' when empty
+      expect(result).toContain('-');
+      // Cancelled: Yes (red)
+      expect(result).toContain('Yes');
+      // All features disabled
+      expect(result).toContain('Disabled');
+    });
+  });
+
   describe('formatStorageBoxSnapshots with size', () => {
     it('should format snapshot with numeric size', () => {
       const snapshots = [
@@ -1234,6 +1501,305 @@ describe('Formatter Module', () => {
       const result = formatStorageBoxSnapshots(snapshots);
 
       expect(result).toContain('1 GB');
+    });
+  });
+
+  describe('formatIpList ternary branches', () => {
+    it('should show locked IP with separate MAC and traffic warnings disabled', () => {
+      const ips = [
+        {
+          ip: {
+            ip: '10.0.0.1',
+            server_ip: '5.6.7.8',
+            server_number: 456,
+            locked: true,
+            separate_mac: 'aa:bb:cc:dd:ee:ff',
+            traffic_warnings: false,
+            traffic_hourly: 50,
+            traffic_daily: 500,
+            traffic_monthly: 5000,
+          },
+        },
+      ];
+
+      const result = formatIpList(ips);
+
+      expect(result).toContain('Yes'); // locked
+      expect(result).toContain('aa:bb:cc:dd:ee:ff'); // separate_mac
+      expect(result).toContain('No'); // traffic_warnings disabled
+    });
+
+    it('should show unlocked IP without separate MAC and traffic warnings enabled', () => {
+      const ips = [
+        {
+          ip: {
+            ip: '10.0.0.2',
+            server_ip: '5.6.7.9',
+            server_number: 789,
+            locked: false,
+            separate_mac: null,
+            traffic_warnings: true,
+            traffic_hourly: 100,
+            traffic_daily: 1000,
+            traffic_monthly: 10000,
+          },
+        },
+      ];
+
+      const result = formatIpList(ips);
+
+      expect(result).toContain('No'); // not locked
+      expect(result).toContain('-'); // no separate MAC
+      expect(result).toContain('Yes'); // traffic_warnings enabled
+    });
+  });
+
+  describe('formatSubnetList ternary branches', () => {
+    it('should show failover enabled and locked subnet', () => {
+      const subnets = [
+        {
+          subnet: {
+            ip: '10.0.0.0',
+            mask: '24',
+            gateway: '10.0.0.1',
+            server_ip: '1.2.3.4',
+            server_number: 123,
+            failover: true,
+            locked: true,
+            traffic_warnings: false,
+            traffic_hourly: 0,
+            traffic_daily: 0,
+            traffic_monthly: 0,
+          },
+        },
+      ];
+
+      const result = formatSubnetList(subnets);
+
+      expect(result).toContain('Yes'); // failover
+      expect(result).toContain('Yes'); // locked
+    });
+  });
+
+  describe('formatFirewall ternary branches', () => {
+    it('should show disabled ipv6 filtering and enabled whitelist_hos', () => {
+      const firewall = {
+        server_ip: '1.2.3.4',
+        server_number: 123,
+        status: 'active' as const,
+        filter_ipv6: false,
+        whitelist_hos: true,
+        port: 'main' as const,
+        rules: { input: [] },
+      };
+
+      const result = formatFirewall(firewall);
+
+      expect(result).toContain('Disabled'); // filter_ipv6
+      expect(result).toContain('Enabled'); // whitelist_hos
+    });
+
+    it('should show discard action and handle null rule fields', () => {
+      const firewall = {
+        server_ip: '1.2.3.4',
+        server_number: 123,
+        status: 'active' as const,
+        filter_ipv6: true,
+        whitelist_hos: false,
+        port: 'main' as const,
+        rules: {
+          input: [
+            {
+              ip_version: 'ipv4',
+              name: '',
+              dst_ip: null,
+              dst_port: null,
+              src_ip: null,
+              src_port: null,
+              protocol: null,
+              tcp_flags: null,
+              action: 'discard' as const,
+            },
+          ],
+        },
+      };
+
+      const result = formatFirewall(firewall);
+
+      expect(result).toContain('discard');
+      // Null fields fall back to '-' or 'any'
+      expect(result).toContain('any'); // protocol, src_ip, dst_port fallbacks
+    });
+  });
+
+  describe('formatFirewallTemplateList ternary branches', () => {
+    it('should show non-default template without ipv6', () => {
+      const templates = [
+        {
+          firewall_template: {
+            id: 2,
+            name: 'custom-template',
+            filter_ipv6: false,
+            whitelist_hos: false,
+            is_default: false,
+            rules: { input: [{ ip_version: 'ipv4', name: 'rule1', dst_ip: null, dst_port: '80', src_ip: null, src_port: null, protocol: 'tcp', tcp_flags: null, action: 'accept' as const }] },
+          },
+        },
+      ];
+
+      const result = formatFirewallTemplateList(templates);
+
+      expect(result).toContain('No'); // is_default
+      expect(result).toContain('No'); // filter_ipv6
+      expect(result).toContain('1'); // rule count
+    });
+  });
+
+  describe('formatVSwitchList ternary branches', () => {
+    it('should show cancelled vSwitch', () => {
+      const vswitches = [
+        {
+          vswitch: {
+            id: 10,
+            name: 'cancelled-vswitch',
+            vlan: 4001,
+            cancelled: true,
+            server: [],
+            subnet: [],
+            cloud_network: [],
+          },
+        },
+      ];
+
+      const result = formatVSwitchList(vswitches);
+
+      expect(result).toContain('Yes'); // cancelled
+    });
+  });
+
+  describe('formatTransactionList ternary branches', () => {
+    it('should show dash when server_ip is null', () => {
+      const transactions = [
+        {
+          transaction: {
+            id: 'TX-99999',
+            date: '2024-03-15',
+            status: 'in process' as const,
+            server_number: null,
+            server_ip: null,
+            authorized_key: [],
+            host_key: [],
+            comment: '',
+            product: {
+              id: 'AX41',
+              name: 'AX41',
+              description: [],
+              traffic: 'unlimited',
+              dist: 'Debian',
+              arch: 64,
+              lang: 'en',
+              location: 'FSN1',
+            },
+          },
+        },
+      ];
+
+      const result = formatTransactionList(transactions);
+
+      expect(result).toContain('TX-99999');
+      expect(result).toContain('-'); // server_ip is null
+    });
+  });
+
+  describe('formatCancellation ternary branches', () => {
+    it('should show cancelled without cancellation_reason', () => {
+      const cancellation = {
+        server_ip: '1.2.3.4',
+        server_ipv6_net: '',
+        server_number: 789,
+        server_name: 'retiring-server',
+        earliest_cancellation_date: '2024-02-01',
+        cancelled: true,
+        cancellation_date: '2024-04-30',
+        cancellation_reason: null,
+      };
+
+      const result = formatCancellation(cancellation);
+
+      expect(result).toContain('Yes'); // cancelled
+      expect(result).toContain('Apr'); // cancellation date
+      expect(result).not.toContain('Reason');
+    });
+
+    it('should show dash for empty server_name', () => {
+      const cancellation = {
+        server_ip: '1.2.3.4',
+        server_ipv6_net: '',
+        server_number: 456,
+        server_name: '',
+        earliest_cancellation_date: '2024-02-01',
+        cancelled: false,
+        cancellation_date: null,
+        cancellation_reason: null,
+      };
+
+      const result = formatCancellation(cancellation);
+
+      expect(result).toContain('456');
+      expect(result).toContain('-'); // empty server_name
+      expect(result).toContain('No'); // not cancelled
+    });
+  });
+
+  describe('formatStorageBoxSubaccounts ternary branches', () => {
+    it('should show all enabled features and readonly', () => {
+      const subaccounts = [
+        {
+          subaccount: {
+            username: 'sub-admin',
+            accountid: 'u123456-sub-admin',
+            server: 'u123456.your-storagebox.de',
+            homedirectory: '/home/admin',
+            samba: true,
+            ssh: true,
+            external_reachability: true,
+            webdav: true,
+            readonly: true,
+            createtime: '2024-01-15T12:00:00Z',
+            comment: 'Admin subaccount',
+          },
+        },
+      ];
+
+      const result = formatStorageBoxSubaccounts(subaccounts);
+
+      expect(result).toContain('sub-admin');
+      expect(result).toContain('Yes'); // ssh, samba, webdav, readonly all Yes
+    });
+
+    it('should show all disabled features and not readonly', () => {
+      const subaccounts = [
+        {
+          subaccount: {
+            username: 'sub-limited',
+            accountid: 'u123456-sub-limited',
+            server: 'u123456.your-storagebox.de',
+            homedirectory: '/home/limited',
+            samba: false,
+            ssh: false,
+            external_reachability: false,
+            webdav: false,
+            readonly: false,
+            createtime: '2024-01-15T12:00:00Z',
+            comment: 'Limited subaccount',
+          },
+        },
+      ];
+
+      const result = formatStorageBoxSubaccounts(subaccounts);
+
+      expect(result).toContain('sub-limited');
+      expect(result).toContain('No'); // all features No
     });
   });
 

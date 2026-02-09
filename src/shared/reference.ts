@@ -12,7 +12,7 @@ const PREAMBLE = `\
 # Version: 2.0.0
 # Binary: hetzner
 # Install: npm install -g hetzner-cli
-# Source: https://github.com/ytspar/hetzner-robot-cli
+# Source: https://github.com/ytspar/hetzner-cli
 #
 # This CLI manages three Hetzner APIs:
 #   1. Robot API — dedicated server management (requires Robot web service credentials)

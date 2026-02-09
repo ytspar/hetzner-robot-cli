@@ -1,5 +1,5 @@
 import { confirm } from '@inquirer/prompts';
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
 import { HetznerRobotClient } from '../robot/client.js';
 import { requireCredentials } from './config.js';
@@ -18,7 +18,7 @@ let client: HetznerRobotClient | null = null;
  * Get or create API client with credentials.
  * Credential sources (in order): CLI flags, env vars, config file, interactive prompt.
  */
-export async function getClient(options: { user?: string; password?: string }): Promise<HetznerRobotClient> {
+async function getClient(options: { user?: string; password?: string }): Promise<HetznerRobotClient> {
   if (client) return client;
 
   const { user } = options;
