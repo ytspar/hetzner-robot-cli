@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, parseLabels, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -41,10 +41,13 @@ export function registerCloudServerCommands(parent: Command): void {
     .option('--datacenter <dc>', 'Datacenter')
     .option('--ssh-key <keys...>', 'SSH key IDs or names')
     .option('--user-data <data>', 'Cloud-init user data')
+    .option('--labels <labels>', 'Labels as key=value pairs (comma-separated)')
+    .option('--firewall <ids...>', 'Firewall IDs to apply')
+    .option('--placement-group <id>', 'Placement group ID')
     .option('--start-after-create', 'Start server after creation', true)
     .option('--no-start-after-create', 'Do not start server after creation')
     .action(
-      cloudAction(async (client, options: CloudActionOptions & { name: string; type: string; image: string; location?: string; datacenter?: string; sshKey?: string[]; userData?: string; startAfterCreate?: boolean }) => {
+      cloudAction(async (client, options: CloudActionOptions & { name: string; type: string; image: string; location?: string; datacenter?: string; sshKey?: string[]; userData?: string; labels?: string; firewall?: string[]; placementGroup?: string; startAfterCreate?: boolean }) => {
         const result = await client.createServer({
           name: options.name,
           server_type: options.type,
@@ -53,6 +56,9 @@ export function registerCloudServerCommands(parent: Command): void {
           datacenter: options.datacenter,
           ssh_keys: options.sshKey,
           user_data: options.userData,
+          labels: options.labels ? parseLabels(options.labels) : undefined,
+          firewalls: options.firewall?.map(id => ({ firewall: parseInt(id) })),
+          placement_group: options.placementGroup ? parseInt(options.placementGroup) : undefined,
           start_after_create: options.startAfterCreate,
         });
         console.log(fmt.success(`Server '${result.server.name}' created (ID: ${result.server.id})`));

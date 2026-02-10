@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { confirm } from '@inquirer/prompts';
 import * as fmt from '../shared/formatter.js';
 import { HetznerCloudClient } from './client.js';
@@ -7,6 +8,32 @@ export interface CloudActionOptions {
   token?: string;
   json?: boolean;
   yes?: boolean;
+}
+
+/**
+ * Parse a comma-separated "key=value,key2=value2" string into a labels object.
+ */
+export function parseLabels(val: string): Record<string, string> {
+  const labels: Record<string, string> = {};
+  for (const pair of val.split(',')) {
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) {
+      labels[trimmed] = '';
+    } else {
+      labels[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1);
+    }
+  }
+  return labels;
+}
+
+/**
+ * Read and parse a JSON file, returning the parsed content.
+ */
+export function readJsonFile<T = unknown>(path: string): T {
+  const content = readFileSync(path, 'utf-8');
+  return JSON.parse(content) as T;
 }
 
 /**

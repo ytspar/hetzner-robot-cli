@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, parseLabels, readJsonFile, type CloudActionOptions } from '../helpers.js';
+import type { CloudFirewallRule } from '../types.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -21,9 +22,15 @@ export function registerCloudFirewallCommands(parent: Command): void {
 
   firewall.command('create').description('Create a firewall')
     .requiredOption('--name <name>', 'Firewall name')
-    .action(cloudAction(async (client, options: CloudActionOptions & { name: string }) => {
-      const { firewall: fw } = await client.createFirewall({ name: options.name });
-      console.log(fmt.success(`Firewall '${fw.name}' created (ID: ${fw.id})`));
+    .option('--rules-file <file>', 'JSON file with firewall rules array')
+    .option('--labels <labels>', 'Labels as key=value pairs (comma-separated)')
+    .action(cloudAction(async (client, options: CloudActionOptions & { name: string; rulesFile?: string; labels?: string }) => {
+      const { firewall: fw } = await client.createFirewall({
+        name: options.name,
+        rules: options.rulesFile ? readJsonFile(options.rulesFile) : undefined,
+        labels: options.labels ? parseLabels(options.labels) : undefined,
+      });
+      console.log(fmt.success(`Firewall '${fw.name}' created (ID: ${fw.id}, ${fw.rules.length} rules)`));
     }));
 
   firewall.command('delete <id>').description('Delete a firewall')
@@ -83,5 +90,13 @@ export function registerCloudFirewallCommands(parent: Command): void {
       const labels = Object.fromEntries(Object.entries(fw.labels).filter(([k]) => k !== key));
       await client.updateFirewall(parseInt(id), { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
+    }));
+
+  firewall.command('set-rules <id>').description('Set firewall rules from a JSON file')
+    .requiredOption('--rules-file <file>', 'JSON file with firewall rules array')
+    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { rulesFile: string }) => {
+      const rules = readJsonFile<CloudFirewallRule[]>(options.rulesFile);
+      await client.setFirewallRules(parseInt(id), rules);
+      console.log(fmt.success(`Firewall ${id} rules updated.`));
     }));
 }
