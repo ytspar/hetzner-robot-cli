@@ -2,11 +2,15 @@
 
 import { Command, Option } from 'commander';
 import { config } from 'dotenv';
+import { createRequire } from 'node:module';
 
 import { registerRobotCommands } from './robot/commands/index.js';
 import { registerCloudCommands } from './cloud/commands/index.js';
 import { registerAuctionCommands } from './auction/commands.js';
 import { generateReference, type ReferenceSection } from './shared/reference.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 config();
 
@@ -23,7 +27,7 @@ program
     '  Run "hetzner reference" for a complete structured reference of all commands and options.\n' +
     '  Run "hetzner <command> --help" for help on a specific command.'
   )
-  .version('2.0.0')
+  .version(version)
   .option('-u, --user <username>', 'Hetzner Robot web service username (or set HETZNER_ROBOT_USER)')
   .option('-p, --password <password>', 'Hetzner Robot web service password (or set HETZNER_ROBOT_PASSWORD; use "-" to read from stdin)')
   .option('--json', 'Output raw JSON instead of formatted tables');
