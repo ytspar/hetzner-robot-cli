@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, parseLabels, readJsonFile, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, parseLabels, readJsonFile, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import type { CloudFirewallRule } from '../types.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
@@ -14,9 +14,10 @@ export function registerCloudFirewallCommands(parent: Command): void {
       cloudOutput(firewalls, cloudFmt.formatCloudFirewallList, options);
     }));
 
-  firewall.command('describe <id>').description('Show firewall details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const fw = await client.getFirewall(parseInt(id));
+  firewall.command('describe <id-or-name>').description('Show firewall details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
+      const fw = await client.getFirewall(id);
       cloudOutput(fw, cloudFmt.formatCloudFirewallDetails, options);
     }));
 
@@ -33,70 +34,78 @@ export function registerCloudFirewallCommands(parent: Command): void {
       console.log(fmt.success(`Firewall '${fw.name}' created (ID: ${fw.id}, ${fw.rules.length} rules)`));
     }));
 
-  firewall.command('delete <id>').description('Delete a firewall')
+  firewall.command('delete <id-or-name>').description('Delete a firewall')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete firewall ${id}?`, options)) return;
-      await client.deleteFirewall(parseInt(id));
-      console.log(fmt.success(`Firewall ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
+      const fw = await client.getFirewall(id);
+      if (!await cloudConfirm(`Delete firewall '${fw.name}' (ID: ${id})?`, options)) return;
+      await client.deleteFirewall(id);
+      console.log(fmt.success(`Firewall '${fw.name}' (ID: ${id}) deleted.`));
     }));
 
-  firewall.command('update <id>').description('Update firewall')
+  firewall.command('update <id-or-name>').description('Update firewall')
     .option('--name <name>', 'New name')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { name?: string }) => {
-      await client.updateFirewall(parseInt(id), { name: options.name });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { name?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
+      await client.updateFirewall(id, { name: options.name });
       console.log(fmt.success(`Firewall ${id} updated.`));
     }));
 
-  firewall.command('apply-to-resource <id>').description('Apply firewall to resource')
+  firewall.command('apply-to-resource <id-or-name>').description('Apply firewall to resource')
     .requiredOption('--type <type>', 'Resource type (server, label_selector)')
     .option('--server <server>', 'Server ID')
     .option('--label-selector <selector>', 'Label selector')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { type: string; server?: string; labelSelector?: string }) => {
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { type: string; server?: string; labelSelector?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
       const applyTo = [{
         type: options.type as 'server' | 'label_selector',
         ...(options.server ? { server: { id: parseInt(options.server) } } : {}),
         ...(options.labelSelector ? { label_selector: { selector: options.labelSelector } } : {}),
       }];
-      await client.applyFirewall(parseInt(id), applyTo);
+      await client.applyFirewall(id, applyTo);
       console.log(fmt.success(`Firewall ${id} applied.`));
     }));
 
-  firewall.command('remove-from-resource <id>').description('Remove firewall from resource')
+  firewall.command('remove-from-resource <id-or-name>').description('Remove firewall from resource')
     .requiredOption('--type <type>', 'Resource type (server, label_selector)')
     .option('--server <server>', 'Server ID')
     .option('--label-selector <selector>', 'Label selector')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { type: string; server?: string; labelSelector?: string }) => {
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { type: string; server?: string; labelSelector?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
       const removeFrom = [{
         type: options.type as 'server' | 'label_selector',
         ...(options.server ? { server: { id: parseInt(options.server) } } : {}),
         ...(options.labelSelector ? { label_selector: { selector: options.labelSelector } } : {}),
       }];
-      await client.removeFirewallFromResources(parseInt(id), removeFrom);
+      await client.removeFirewallFromResources(id, removeFrom);
       console.log(fmt.success(`Firewall ${id} removed from resource.`));
     }));
 
-  firewall.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const fw = await client.getFirewall(parseInt(id));
+  firewall.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
+      const fw = await client.getFirewall(id);
       const [key, value] = label.split('=');
-      await client.updateFirewall(parseInt(id), { labels: { ...fw.labels, [key]: value || '' } });
+      await client.updateFirewall(id, { labels: { ...fw.labels, [key]: value || '' } });
       console.log(fmt.success(`Label '${key}' added.`));
     }));
 
-  firewall.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const fw = await client.getFirewall(parseInt(id));
+  firewall.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
+      const fw = await client.getFirewall(id);
       const labels = Object.fromEntries(Object.entries(fw.labels).filter(([k]) => k !== key));
-      await client.updateFirewall(parseInt(id), { labels });
+      await client.updateFirewall(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 
-  firewall.command('set-rules <id>').description('Set firewall rules from a JSON file')
+  firewall.command('set-rules <id-or-name>').description('Set firewall rules from a JSON file')
     .requiredOption('--rules-file <file>', 'JSON file with firewall rules array')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { rulesFile: string }) => {
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { rulesFile: string }) => {
+      const id = await resolveIdOrName(idOrName, 'firewall', (name) => client.listFirewalls({ name }));
       const rules = readJsonFile<CloudFirewallRule[]>(options.rulesFile);
-      await client.setFirewallRules(parseInt(id), rules);
+      await client.setFirewallRules(id, rules);
       console.log(fmt.success(`Firewall ${id} rules updated.`));
     }));
 }

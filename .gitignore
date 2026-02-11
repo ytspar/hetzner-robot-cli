@@ -6,8 +6,8 @@ dist/
 
 # Environment files
 .env
+.env.*
 .env.local
-.env.*.local
 
 # IDE
 .idea/

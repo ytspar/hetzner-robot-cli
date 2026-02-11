@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -14,9 +14,10 @@ export function registerPlacementGroupCommands(parent: Command): void {
       cloudOutput(groups, cloudFmt.formatPlacementGroupList, options);
     }));
 
-  pg.command('describe <id>').description('Show placement group details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const group = await client.getPlacementGroup(parseInt(id));
+  pg.command('describe <id-or-name>').description('Show placement group details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'placement group', (name) => client.listPlacementGroups({ name }));
+      const group = await client.getPlacementGroup(id);
       cloudOutput(group, cloudFmt.formatPlacementGroupDetails, options);
     }));
 
@@ -28,34 +29,39 @@ export function registerPlacementGroupCommands(parent: Command): void {
       console.log(fmt.success(`Placement group '${group.name}' created (ID: ${group.id})`));
     }));
 
-  pg.command('delete <id>').description('Delete a placement group')
+  pg.command('delete <id-or-name>').description('Delete a placement group')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete placement group ${id}?`, options)) return;
-      await client.deletePlacementGroup(parseInt(id));
-      console.log(fmt.success(`Placement group ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'placement group', (name) => client.listPlacementGroups({ name }));
+      const group = await client.getPlacementGroup(id);
+      if (!await cloudConfirm(`Delete placement group '${group.name}' (ID: ${id})?`, options)) return;
+      await client.deletePlacementGroup(id);
+      console.log(fmt.success(`Placement group '${group.name}' (ID: ${id}) deleted.`));
     }));
 
-  pg.command('update <id>').description('Update placement group')
+  pg.command('update <id-or-name>').description('Update placement group')
     .option('--name <name>', 'New name')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { name?: string }) => {
-      await client.updatePlacementGroup(parseInt(id), { name: options.name });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { name?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'placement group', (name) => client.listPlacementGroups({ name }));
+      await client.updatePlacementGroup(id, { name: options.name });
       console.log(fmt.success(`Placement group ${id} updated.`));
     }));
 
-  pg.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const group = await client.getPlacementGroup(parseInt(id));
+  pg.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'placement group', (name) => client.listPlacementGroups({ name }));
+      const group = await client.getPlacementGroup(id);
       const [key, value] = label.split('=');
-      await client.updatePlacementGroup(parseInt(id), { labels: { ...group.labels, [key]: value || '' } });
+      await client.updatePlacementGroup(id, { labels: { ...group.labels, [key]: value || '' } });
       console.log(fmt.success(`Label '${key}' added.`));
     }));
 
-  pg.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const group = await client.getPlacementGroup(parseInt(id));
+  pg.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'placement group', (name) => client.listPlacementGroups({ name }));
+      const group = await client.getPlacementGroup(id);
       const labels = Object.fromEntries(Object.entries(group.labels).filter(([k]) => k !== key));
-      await client.updatePlacementGroup(parseInt(id), { labels });
+      await client.updatePlacementGroup(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 }

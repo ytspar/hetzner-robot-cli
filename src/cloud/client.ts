@@ -132,8 +132,8 @@ export class HetznerCloudClient {
   // Datacenters (read-only)
   // =========================================================================
 
-  async listDatacenters(): Promise<Datacenter[]> {
-    return this.listAll<Datacenter>('/datacenters', 'datacenters');
+  async listDatacenters(params: { name?: string } = {}): Promise<Datacenter[]> {
+    return this.listAll<Datacenter>('/datacenters', 'datacenters', params);
   }
 
   async getDatacenter(id: number): Promise<Datacenter> {
@@ -145,8 +145,8 @@ export class HetznerCloudClient {
   // Locations (read-only)
   // =========================================================================
 
-  async listLocations(): Promise<Location[]> {
-    return this.listAll<Location>('/locations', 'locations');
+  async listLocations(params: { name?: string } = {}): Promise<Location[]> {
+    return this.listAll<Location>('/locations', 'locations', params);
   }
 
   async getLocation(id: number): Promise<Location> {
@@ -158,8 +158,8 @@ export class HetznerCloudClient {
   // Server Types (read-only)
   // =========================================================================
 
-  async listServerTypes(): Promise<ServerType[]> {
-    return this.listAll<ServerType>('/server_types', 'server_types');
+  async listServerTypes(params: { name?: string } = {}): Promise<ServerType[]> {
+    return this.listAll<ServerType>('/server_types', 'server_types', params);
   }
 
   async getServerType(id: number): Promise<ServerType> {
@@ -171,8 +171,8 @@ export class HetznerCloudClient {
   // Load Balancer Types (read-only)
   // =========================================================================
 
-  async listLoadBalancerTypes(): Promise<LoadBalancerType[]> {
-    return this.listAll<LoadBalancerType>('/load_balancer_types', 'load_balancer_types');
+  async listLoadBalancerTypes(params: { name?: string } = {}): Promise<LoadBalancerType[]> {
+    return this.listAll<LoadBalancerType>('/load_balancer_types', 'load_balancer_types', params);
   }
 
   async getLoadBalancerType(id: number): Promise<LoadBalancerType> {
@@ -492,7 +492,7 @@ export class HetznerCloudClient {
   // Floating IPs
   // =========================================================================
 
-  async listFloatingIps(params: { label_selector?: string; sort?: string } = {}): Promise<FloatingIp[]> {
+  async listFloatingIps(params: { label_selector?: string; sort?: string; name?: string } = {}): Promise<FloatingIp[]> {
     return this.listAll<FloatingIp>('/floating_ips', 'floating_ips', params);
   }
 

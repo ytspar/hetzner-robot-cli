@@ -31,9 +31,27 @@ export function parseLabels(val: string): Record<string, string> {
 /**
  * Read and parse a JSON file, returning the parsed content.
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 export function readJsonFile<T = unknown>(path: string): T {
   const content = readFileSync(path, 'utf-8');
   return JSON.parse(content) as T;
+}
+
+/**
+ * Resolve a numeric ID string or a resource name to a numeric ID.
+ * If the input is purely digits, returns it directly without any API call.
+ * Otherwise, calls the resolver to look up the name and expects exactly one match.
+ */
+export async function resolveIdOrName(
+  idOrName: string,
+  resourceType: string,
+  resolver: (name: string) => Promise<{ id: number; name: string | null }[]>
+): Promise<number> {
+  if (/^\d+$/.test(idOrName)) return parseInt(idOrName, 10);
+  const matches = await resolver(idOrName);
+  if (matches.length === 0) throw new Error(`${resourceType} '${idOrName}' not found`);
+  if (matches.length > 1) throw new Error(`Multiple ${resourceType}s match '${idOrName}' (IDs: ${matches.map(m => m.id).join(', ')}). Use numeric ID instead.`);
+  return matches[0].id;
 }
 
 /**

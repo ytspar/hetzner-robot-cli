@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as cloudFmt from '../formatter.js';
 
 export function registerServerTypeCommands(parent: Command): void {
@@ -17,11 +17,12 @@ export function registerServerTypeCommands(parent: Command): void {
     );
 
   serverType
-    .command('describe <id>')
+    .command('describe <id-or-name>')
     .description('Show server type details')
     .action(
-      cloudAction(async (client, id: string, options: CloudActionOptions) => {
-        const type = await client.getServerType(parseInt(id));
+      cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+        const id = await resolveIdOrName(idOrName, 'server type', (name) => client.listServerTypes({ name }));
+        const type = await client.getServerType(id);
         cloudOutput(type, cloudFmt.formatServerTypeDetails, options);
       })
     );

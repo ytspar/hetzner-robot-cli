@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -15,9 +15,10 @@ export function registerVolumeCommands(parent: Command): void {
       cloudOutput(volumes, cloudFmt.formatVolumeList, options);
     }));
 
-  volume.command('describe <id>').description('Show volume details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const vol = await client.getVolume(parseInt(id));
+  volume.command('describe <id-or-name>').description('Show volume details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      const vol = await client.getVolume(id);
       cloudOutput(vol, cloudFmt.formatVolumeDetails, options);
     }));
 
@@ -40,66 +41,76 @@ export function registerVolumeCommands(parent: Command): void {
       console.log(fmt.success(`Volume '${vol.name}' created (ID: ${vol.id}, ${vol.size} GB)`));
     }));
 
-  volume.command('delete <id>').description('Delete a volume')
+  volume.command('delete <id-or-name>').description('Delete a volume')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete volume ${id}?`, options)) return;
-      await client.deleteVolume(parseInt(id));
-      console.log(fmt.success(`Volume ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      const vol = await client.getVolume(id);
+      if (!await cloudConfirm(`Delete volume '${vol.name}' (ID: ${id})?`, options)) return;
+      await client.deleteVolume(id);
+      console.log(fmt.success(`Volume '${vol.name}' (ID: ${id}) deleted.`));
     }));
 
-  volume.command('update <id>').description('Update volume')
+  volume.command('update <id-or-name>').description('Update volume')
     .option('--name <name>', 'New name')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { name?: string }) => {
-      await client.updateVolume(parseInt(id), { name: options.name });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { name?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      await client.updateVolume(id, { name: options.name });
       console.log(fmt.success(`Volume ${id} updated.`));
     }));
 
-  volume.command('attach <id> <server>').description('Attach volume to server')
+  volume.command('attach <id-or-name> <server>').description('Attach volume to server')
     .option('--automount', 'Auto-mount on server')
-    .action(cloudAction(async (client, id: string, server: string, options: CloudActionOptions & { automount?: boolean }) => {
-      await client.attachVolume(parseInt(id), parseInt(server), options.automount);
+    .action(cloudAction(async (client, idOrName: string, server: string, options: CloudActionOptions & { automount?: boolean }) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      await client.attachVolume(id, parseInt(server), options.automount);
       console.log(fmt.success(`Volume ${id} attached to server ${server}.`));
     }));
 
-  volume.command('detach <id>').description('Detach volume from server')
-    .action(cloudAction(async (client, id: string) => {
-      await client.detachVolume(parseInt(id));
+  volume.command('detach <id-or-name>').description('Detach volume from server')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      await client.detachVolume(id);
       console.log(fmt.success(`Volume ${id} detached.`));
     }));
 
-  volume.command('resize <id>').description('Resize a volume')
+  volume.command('resize <id-or-name>').description('Resize a volume')
     .requiredOption('--size <size>', 'New size in GB')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { size: string }) => {
-      await client.resizeVolume(parseInt(id), parseInt(options.size));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { size: string }) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      await client.resizeVolume(id, parseInt(options.size));
       console.log(fmt.success(`Volume ${id} resized to ${options.size} GB.`));
     }));
 
-  volume.command('enable-protection <id>').description('Enable delete protection')
-    .action(cloudAction(async (client, id: string) => {
-      await client.changeVolumeProtection(parseInt(id), true);
+  volume.command('enable-protection <id-or-name>').description('Enable delete protection')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      await client.changeVolumeProtection(id, true);
       console.log(fmt.success(`Protection enabled for volume ${id}.`));
     }));
 
-  volume.command('disable-protection <id>').description('Disable delete protection')
-    .action(cloudAction(async (client, id: string) => {
-      await client.changeVolumeProtection(parseInt(id), false);
+  volume.command('disable-protection <id-or-name>').description('Disable delete protection')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      await client.changeVolumeProtection(id, false);
       console.log(fmt.success(`Protection disabled for volume ${id}.`));
     }));
 
-  volume.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const vol = await client.getVolume(parseInt(id));
+  volume.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      const vol = await client.getVolume(id);
       const [key, value] = label.split('=');
-      await client.updateVolume(parseInt(id), { labels: { ...vol.labels, [key]: value || '' } });
+      await client.updateVolume(id, { labels: { ...vol.labels, [key]: value || '' } });
       console.log(fmt.success(`Label '${key}' added.`));
     }));
 
-  volume.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const vol = await client.getVolume(parseInt(id));
+  volume.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'volume', (name) => client.listVolumes({ name }));
+      const vol = await client.getVolume(id);
       const labels = Object.fromEntries(Object.entries(vol.labels).filter(([k]) => k !== key));
-      await client.updateVolume(parseInt(id), { labels });
+      await client.updateVolume(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 }

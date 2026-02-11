@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -17,53 +17,61 @@ export function registerImageCommands(parent: Command): void {
       cloudOutput(images, cloudFmt.formatImageList, options);
     }));
 
-  image.command('describe <id>').description('Show image details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const img = await client.getImage(parseInt(id));
+  image.command('describe <id-or-name>').description('Show image details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      const img = await client.getImage(id);
       cloudOutput(img, cloudFmt.formatImageDetails, options);
     }));
 
-  image.command('update <id>').description('Update image')
+  image.command('update <id-or-name>').description('Update image')
     .option('--description <desc>', 'New description')
     .option('--type <type>', 'New type (snapshot)')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { description?: string; type?: string }) => {
-      await client.updateImage(parseInt(id), { description: options.description, type: options.type });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { description?: string; type?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      await client.updateImage(id, { description: options.description, type: options.type });
       console.log(fmt.success(`Image ${id} updated.`));
     }));
 
-  image.command('delete <id>').description('Delete an image')
+  image.command('delete <id-or-name>').description('Delete an image')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete image ${id}?`, options)) return;
-      await client.deleteImage(parseInt(id));
-      console.log(fmt.success(`Image ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      const img = await client.getImage(id);
+      if (!await cloudConfirm(`Delete image '${img.description}' (ID: ${id})?`, options)) return;
+      await client.deleteImage(id);
+      console.log(fmt.success(`Image '${img.description}' (ID: ${id}) deleted.`));
     }));
 
-  image.command('enable-protection <id>').description('Enable delete protection')
-    .action(cloudAction(async (client, id: string) => {
-      await client.changeImageProtection(parseInt(id), true);
+  image.command('enable-protection <id-or-name>').description('Enable delete protection')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      await client.changeImageProtection(id, true);
       console.log(fmt.success(`Protection enabled for image ${id}.`));
     }));
 
-  image.command('disable-protection <id>').description('Disable delete protection')
-    .action(cloudAction(async (client, id: string) => {
-      await client.changeImageProtection(parseInt(id), false);
+  image.command('disable-protection <id-or-name>').description('Disable delete protection')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      await client.changeImageProtection(id, false);
       console.log(fmt.success(`Protection disabled for image ${id}.`));
     }));
 
-  image.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const img = await client.getImage(parseInt(id));
+  image.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      const img = await client.getImage(id);
       const [key, value] = label.split('=');
-      await client.updateImage(parseInt(id), { labels: { ...img.labels, [key]: value || '' } });
+      await client.updateImage(id, { labels: { ...img.labels, [key]: value || '' } });
       console.log(fmt.success(`Label '${key}' added.`));
     }));
 
-  image.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const img = await client.getImage(parseInt(id));
+  image.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'image', (name) => client.listImages({ name }));
+      const img = await client.getImage(id);
       const labels = Object.fromEntries(Object.entries(img.labels).filter(([k]) => k !== key));
-      await client.updateImage(parseInt(id), { labels });
+      await client.updateImage(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 }

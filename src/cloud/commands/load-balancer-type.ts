@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as cloudFmt from '../formatter.js';
 
 export function registerLoadBalancerTypeCommands(parent: Command): void {
@@ -17,11 +17,12 @@ export function registerLoadBalancerTypeCommands(parent: Command): void {
     );
 
   lbType
-    .command('describe <id>')
+    .command('describe <id-or-name>')
     .description('Show load balancer type details')
     .action(
-      cloudAction(async (client, id: string, options: CloudActionOptions) => {
-        const type = await client.getLoadBalancerType(parseInt(id));
+      cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+        const id = await resolveIdOrName(idOrName, 'load balancer type', (name) => client.listLoadBalancerTypes({ name }));
+        const type = await client.getLoadBalancerType(id);
         cloudOutput(type, cloudFmt.formatLoadBalancerTypeDetails, options);
       })
     );

@@ -18,7 +18,7 @@ vi.mock('../shared/formatter.js', () => ({
   formatJson: vi.fn((data: unknown) => JSON.stringify(data, null, 2)),
 }));
 
-import { cloudAction, cloudOutput, cloudConfirm } from './helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName } from './helpers.js';
 import { resolveToken } from './context.js';
 import { HetznerCloudClient } from './client.js';
 import { confirm } from '@inquirer/prompts';
@@ -166,6 +166,51 @@ describe('helpers', () => {
       await cloudConfirm('Proceed?', {}, true);
 
       expect(mockConfirm).toHaveBeenCalledWith({ message: 'Proceed?', default: true });
+    });
+  });
+
+  describe('resolveIdOrName', () => {
+    it('should return numeric ID directly without calling resolver', async () => {
+      const resolver = vi.fn();
+      const result = await resolveIdOrName('12345', 'server', resolver);
+      expect(result).toBe(12345);
+      expect(resolver).not.toHaveBeenCalled();
+    });
+
+    it('should resolve a name to an ID when exactly one match', async () => {
+      const resolver = vi.fn().mockResolvedValue([{ id: 42, name: 'my-server' }]);
+      const result = await resolveIdOrName('my-server', 'server', resolver);
+      expect(result).toBe(42);
+      expect(resolver).toHaveBeenCalledWith('my-server');
+    });
+
+    it('should throw "not found" when no matches', async () => {
+      const resolver = vi.fn().mockResolvedValue([]);
+      await expect(resolveIdOrName('missing', 'server', resolver))
+        .rejects.toThrow("server 'missing' not found");
+    });
+
+    it('should throw "multiple match" when more than one match', async () => {
+      const resolver = vi.fn().mockResolvedValue([
+        { id: 1, name: 'dup' },
+        { id: 2, name: 'dup' },
+      ]);
+      await expect(resolveIdOrName('dup', 'server', resolver))
+        .rejects.toThrow("Multiple servers match 'dup' (IDs: 1, 2). Use numeric ID instead.");
+    });
+
+    it('should treat mixed alphanumeric input as a name', async () => {
+      const resolver = vi.fn().mockResolvedValue([{ id: 99, name: '123abc' }]);
+      const result = await resolveIdOrName('123abc', 'server', resolver);
+      expect(result).toBe(99);
+      expect(resolver).toHaveBeenCalledWith('123abc');
+    });
+
+    it('should handle leading zeros as numeric ID', async () => {
+      const resolver = vi.fn();
+      const result = await resolveIdOrName('007', 'server', resolver);
+      expect(result).toBe(7);
+      expect(resolver).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -15,9 +15,10 @@ export function registerCloudSshKeyCommands(parent: Command): void {
       cloudOutput(keys, cloudFmt.formatCloudSshKeyList, options);
     }));
 
-  sshKey.command('describe <id>').description('Show SSH key details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const key = await client.getSshKey(parseInt(id));
+  sshKey.command('describe <id-or-name>').description('Show SSH key details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'SSH key', (name) => client.listSshKeys({ name }));
+      const key = await client.getSshKey(id);
       cloudOutput(key, cloudFmt.formatCloudSshKeyDetails, options);
     }));
 
@@ -38,34 +39,39 @@ export function registerCloudSshKeyCommands(parent: Command): void {
       console.log(fmt.success(`SSH key '${key.name}' created (ID: ${key.id})`));
     }));
 
-  sshKey.command('delete <id>').description('Delete an SSH key')
+  sshKey.command('delete <id-or-name>').description('Delete an SSH key')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete SSH key ${id}?`, options)) return;
-      await client.deleteSshKey(parseInt(id));
-      console.log(fmt.success(`SSH key ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'SSH key', (name) => client.listSshKeys({ name }));
+      const key = await client.getSshKey(id);
+      if (!await cloudConfirm(`Delete SSH key '${key.name}' (ID: ${id})?`, options)) return;
+      await client.deleteSshKey(id);
+      console.log(fmt.success(`SSH key '${key.name}' (ID: ${id}) deleted.`));
     }));
 
-  sshKey.command('update <id>').description('Update SSH key')
+  sshKey.command('update <id-or-name>').description('Update SSH key')
     .option('--name <name>', 'New name')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { name?: string }) => {
-      await client.updateSshKey(parseInt(id), { name: options.name });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { name?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'SSH key', (name) => client.listSshKeys({ name }));
+      await client.updateSshKey(id, { name: options.name });
       console.log(fmt.success(`SSH key ${id} updated.`));
     }));
 
-  sshKey.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const key = await client.getSshKey(parseInt(id));
+  sshKey.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'SSH key', (name) => client.listSshKeys({ name }));
+      const key = await client.getSshKey(id);
       const [k, v] = label.split('=');
-      await client.updateSshKey(parseInt(id), { labels: { ...key.labels, [k]: v || '' } });
+      await client.updateSshKey(id, { labels: { ...key.labels, [k]: v || '' } });
       console.log(fmt.success(`Label '${k}' added.`));
     }));
 
-  sshKey.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const sshKeyData = await client.getSshKey(parseInt(id));
+  sshKey.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'SSH key', (name) => client.listSshKeys({ name }));
+      const sshKeyData = await client.getSshKey(id);
       const labels = Object.fromEntries(Object.entries(sshKeyData.labels).filter(([k]) => k !== key));
-      await client.updateSshKey(parseInt(id), { labels });
+      await client.updateSshKey(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 }

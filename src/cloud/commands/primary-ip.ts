@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -13,9 +13,10 @@ export function registerPrimaryIpCommands(parent: Command): void {
       cloudOutput(ips, cloudFmt.formatPrimaryIpList, options);
     }));
 
-  pip.command('describe <id>').description('Show primary IP details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const ip = await client.getPrimaryIp(parseInt(id));
+  pip.command('describe <id-or-name>').description('Show primary IP details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      const ip = await client.getPrimaryIp(id);
       cloudOutput(ip, cloudFmt.formatPrimaryIpDetails, options);
     }));
 
@@ -30,67 +31,77 @@ export function registerPrimaryIpCommands(parent: Command): void {
       console.log(fmt.success(`Primary IP created (ID: ${ip.id}, IP: ${ip.ip})`));
     }));
 
-  pip.command('delete <id>').description('Delete a primary IP')
+  pip.command('delete <id-or-name>').description('Delete a primary IP')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete primary IP ${id}?`, options)) return;
-      await client.deletePrimaryIp(parseInt(id));
-      console.log(fmt.success(`Primary IP ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      const ip = await client.getPrimaryIp(id);
+      if (!await cloudConfirm(`Delete primary IP '${ip.name}' (ID: ${id})?`, options)) return;
+      await client.deletePrimaryIp(id);
+      console.log(fmt.success(`Primary IP '${ip.name}' (ID: ${id}) deleted.`));
     }));
 
-  pip.command('update <id>').description('Update primary IP')
+  pip.command('update <id-or-name>').description('Update primary IP')
     .option('--name <name>', 'New name')
     .option('--auto-delete <bool>', 'Auto-delete with server (true/false)')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { name?: string; autoDelete?: string }) => {
-      await client.updatePrimaryIp(parseInt(id), { name: options.name, auto_delete: options.autoDelete ? options.autoDelete === 'true' : undefined });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { name?: string; autoDelete?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      await client.updatePrimaryIp(id, { name: options.name, auto_delete: options.autoDelete ? options.autoDelete === 'true' : undefined });
       console.log(fmt.success(`Primary IP ${id} updated.`));
     }));
 
-  pip.command('assign <id> <server>').description('Assign primary IP to server')
-    .action(cloudAction(async (client, id: string, server: string) => {
-      await client.assignPrimaryIp(parseInt(id), parseInt(server));
+  pip.command('assign <id-or-name> <server>').description('Assign primary IP to server')
+    .action(cloudAction(async (client, idOrName: string, server: string) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      await client.assignPrimaryIp(id, parseInt(server));
       console.log(fmt.success(`Primary IP ${id} assigned to server ${server}.`));
     }));
 
-  pip.command('unassign <id>').description('Unassign primary IP')
-    .action(cloudAction(async (client, id: string) => {
-      await client.unassignPrimaryIp(parseInt(id));
+  pip.command('unassign <id-or-name>').description('Unassign primary IP')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      await client.unassignPrimaryIp(id);
       console.log(fmt.success(`Primary IP ${id} unassigned.`));
     }));
 
-  pip.command('enable-protection <id>').description('Enable delete protection')
-    .action(cloudAction(async (client, id: string) => {
-      await client.changePrimaryIpProtection(parseInt(id), true);
+  pip.command('enable-protection <id-or-name>').description('Enable delete protection')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      await client.changePrimaryIpProtection(id, true);
       console.log(fmt.success(`Protection enabled for primary IP ${id}.`));
     }));
 
-  pip.command('disable-protection <id>').description('Disable delete protection')
-    .action(cloudAction(async (client, id: string) => {
-      await client.changePrimaryIpProtection(parseInt(id), false);
+  pip.command('disable-protection <id-or-name>').description('Disable delete protection')
+    .action(cloudAction(async (client, idOrName: string) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      await client.changePrimaryIpProtection(id, false);
       console.log(fmt.success(`Protection disabled for primary IP ${id}.`));
     }));
 
-  pip.command('set-rdns <id>').description('Set reverse DNS')
+  pip.command('set-rdns <id-or-name>').description('Set reverse DNS')
     .requiredOption('--ip <ip>', 'IP address')
     .requiredOption('--dns-ptr <ptr>', 'DNS pointer (empty to reset)')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { ip: string; dnsPtr: string }) => {
-      await client.changePrimaryIpDnsPtr(parseInt(id), options.ip, options.dnsPtr || null);
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { ip: string; dnsPtr: string }) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      await client.changePrimaryIpDnsPtr(id, options.ip, options.dnsPtr || null);
       console.log(fmt.success('rDNS updated.'));
     }));
 
-  pip.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const ip = await client.getPrimaryIp(parseInt(id));
+  pip.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      const ip = await client.getPrimaryIp(id);
       const [key, value] = label.split('=');
-      await client.updatePrimaryIp(parseInt(id), { labels: { ...ip.labels, [key]: value || '' } });
+      await client.updatePrimaryIp(id, { labels: { ...ip.labels, [key]: value || '' } });
       console.log(fmt.success(`Label '${key}' added.`));
     }));
 
-  pip.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const ip = await client.getPrimaryIp(parseInt(id));
+  pip.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'primary IP', (name) => client.listPrimaryIps({ name }));
+      const ip = await client.getPrimaryIp(id);
       const labels = Object.fromEntries(Object.entries(ip.labels).filter(([k]) => k !== key));
-      await client.updatePrimaryIp(parseInt(id), { labels });
+      await client.updatePrimaryIp(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 }

@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as cloudFmt from '../formatter.js';
 
 export function registerDatacenterCommands(parent: Command): void {
@@ -17,11 +17,12 @@ export function registerDatacenterCommands(parent: Command): void {
     );
 
   datacenter
-    .command('describe <id>')
+    .command('describe <id-or-name>')
     .description('Show datacenter details')
     .action(
-      cloudAction(async (client, id: string, options: CloudActionOptions) => {
-        const datacenter = await client.getDatacenter(parseInt(id));
+      cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+        const id = await resolveIdOrName(idOrName, 'datacenter', (name) => client.listDatacenters({ name }));
+        const datacenter = await client.getDatacenter(id);
         cloudOutput(datacenter, cloudFmt.formatDatacenterDetails, options);
       })
     );

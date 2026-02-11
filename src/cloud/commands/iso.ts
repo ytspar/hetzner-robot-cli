@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { cloudAction, cloudOutput, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as cloudFmt from '../formatter.js';
 
 export function registerIsoCommands(parent: Command): void {
@@ -19,11 +19,12 @@ export function registerIsoCommands(parent: Command): void {
     );
 
   iso
-    .command('describe <id>')
+    .command('describe <id-or-name>')
     .description('Show ISO details')
     .action(
-      cloudAction(async (client, id: string, options: CloudActionOptions) => {
-        const iso = await client.getIso(parseInt(id));
+      cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+        const id = await resolveIdOrName(idOrName, 'ISO', (name) => client.listIsos({ name }));
+        const iso = await client.getIso(id);
         cloudOutput(iso, cloudFmt.formatIsoDetails, options);
       })
     );

@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
-import { cloudAction, cloudOutput, cloudConfirm, type CloudActionOptions } from '../helpers.js';
+import { cloudAction, cloudOutput, cloudConfirm, resolveIdOrName, type CloudActionOptions } from '../helpers.js';
 import * as fmt from '../../shared/formatter.js';
 import * as cloudFmt from '../formatter.js';
 
@@ -16,9 +16,10 @@ export function registerCertificateCommands(parent: Command): void {
       cloudOutput(certs, cloudFmt.formatCertificateList, options);
     }));
 
-  cert.command('describe <id>').description('Show certificate details')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      const certificate = await client.getCertificate(parseInt(id));
+  cert.command('describe <id-or-name>').description('Show certificate details')
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'certificate', (name) => client.listCertificates({ name }));
+      const certificate = await client.getCertificate(id);
       cloudOutput(certificate, cloudFmt.formatCertificateDetails, options);
     }));
 
@@ -51,34 +52,39 @@ export function registerCertificateCommands(parent: Command): void {
       console.log(fmt.success(`Certificate '${created.name}' created (ID: ${created.id})`));
     }));
 
-  cert.command('delete <id>').description('Delete a certificate')
+  cert.command('delete <id-or-name>').description('Delete a certificate')
     .option('-y, --yes', 'Skip confirmation')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions) => {
-      if (!await cloudConfirm(`Delete certificate ${id}?`, options)) return;
-      await client.deleteCertificate(parseInt(id));
-      console.log(fmt.success(`Certificate ${id} deleted.`));
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions) => {
+      const id = await resolveIdOrName(idOrName, 'certificate', (name) => client.listCertificates({ name }));
+      const certificate = await client.getCertificate(id);
+      if (!await cloudConfirm(`Delete certificate '${certificate.name}' (ID: ${id})?`, options)) return;
+      await client.deleteCertificate(id);
+      console.log(fmt.success(`Certificate '${certificate.name}' (ID: ${id}) deleted.`));
     }));
 
-  cert.command('update <id>').description('Update certificate')
+  cert.command('update <id-or-name>').description('Update certificate')
     .option('--name <name>', 'New name')
-    .action(cloudAction(async (client, id: string, options: CloudActionOptions & { name?: string }) => {
-      await client.updateCertificate(parseInt(id), { name: options.name });
+    .action(cloudAction(async (client, idOrName: string, options: CloudActionOptions & { name?: string }) => {
+      const id = await resolveIdOrName(idOrName, 'certificate', (name) => client.listCertificates({ name }));
+      await client.updateCertificate(id, { name: options.name });
       console.log(fmt.success(`Certificate ${id} updated.`));
     }));
 
-  cert.command('add-label <id> <label>').description('Add a label (key=value)')
-    .action(cloudAction(async (client, id: string, label: string) => {
-      const certificate = await client.getCertificate(parseInt(id));
+  cert.command('add-label <id-or-name> <label>').description('Add a label (key=value)')
+    .action(cloudAction(async (client, idOrName: string, label: string) => {
+      const id = await resolveIdOrName(idOrName, 'certificate', (name) => client.listCertificates({ name }));
+      const certificate = await client.getCertificate(id);
       const [key, value] = label.split('=');
-      await client.updateCertificate(parseInt(id), { labels: { ...certificate.labels, [key]: value || '' } });
+      await client.updateCertificate(id, { labels: { ...certificate.labels, [key]: value || '' } });
       console.log(fmt.success(`Label '${key}' added.`));
     }));
 
-  cert.command('remove-label <id> <key>').description('Remove a label')
-    .action(cloudAction(async (client, id: string, key: string) => {
-      const certificate = await client.getCertificate(parseInt(id));
+  cert.command('remove-label <id-or-name> <key>').description('Remove a label')
+    .action(cloudAction(async (client, idOrName: string, key: string) => {
+      const id = await resolveIdOrName(idOrName, 'certificate', (name) => client.listCertificates({ name }));
+      const certificate = await client.getCertificate(id);
       const labels = Object.fromEntries(Object.entries(certificate.labels).filter(([k]) => k !== key));
-      await client.updateCertificate(parseInt(id), { labels });
+      await client.updateCertificate(id, { labels });
       console.log(fmt.success(`Label '${key}' removed.`));
     }));
 }

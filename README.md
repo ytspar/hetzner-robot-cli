@@ -7,6 +7,8 @@
 [![npm version](https://badge.fury.io/js/hetzner-cli.svg)](https://www.npmjs.com/package/hetzner-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **Note:** This is an unofficial, community-built CLI. The official Hetzner Cloud CLI is [`hcloud`](https://github.com/hetznercloud/cli). See [how they differ](#comparison-with-official-cli).
+
 Unified CLI and Node.js library for Hetzner's three APIs:
 
 - **Robot API** — dedicated server management (servers, IPs, firewall, storage boxes, etc.)
@@ -17,6 +19,7 @@ Unified CLI and Node.js library for Hetzner's three APIs:
 
 ## Table of Contents
 
+- [Comparison with Official CLI](#comparison-with-official-cli)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Authentication](#authentication)
@@ -38,6 +41,25 @@ Unified CLI and Node.js library for Hetzner's three APIs:
 - [Configuration Files](#configuration-files)
 - [Development](#development)
 - [License](#license)
+
+---
+
+## Comparison with Official CLI
+
+Hetzner maintains an official Cloud CLI called [`hcloud`](https://github.com/hetznercloud/cli), written in Go. This project (`hetzner-cli`) is a separate, community-built tool. Here's how they compare:
+
+| | [`hcloud`](https://github.com/hetznercloud/cli) (official) | `hetzner-cli` (this project) |
+|---|---|---|
+| **API coverage** | Cloud only | Cloud + Robot + Server Auction |
+| **Language** | Go (single binary) | TypeScript / Node.js |
+| **Install** | Homebrew, apt, binary download | `npm install -g hetzner-cli` |
+| **Library usage** | CLI only | Also usable as a Node.js library (`import { HetznerRobotClient } from 'hetzner-cli'`) |
+| **Interactive mode** | No | Yes (`hetzner interactive`) |
+| **LLM reference** | No | Yes (`hetzner reference` — structured output for LLM context) |
+
+**When to use `hcloud`:** You only need Cloud API access and prefer a native binary with no runtime dependency.
+
+**When to use `hetzner-cli`:** You manage dedicated servers (Robot), browse the server auction, or want a single tool that covers all three Hetzner APIs. Also useful if you need a Node.js library for automation scripts.
 
 ---
 
