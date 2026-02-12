@@ -7,13 +7,13 @@
 [![npm version](https://badge.fury.io/js/hetzner-cli.svg)](https://www.npmjs.com/package/hetzner-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Note:** This is an unofficial, community-built CLI. The official Hetzner Cloud CLI is [`hcloud`](https://github.com/hetznercloud/cli). See [how they differ](#comparison-with-official-cli).
-
 Unified CLI and Node.js library for Hetzner's three APIs:
 
-- **Robot API** — dedicated server management (servers, IPs, firewall, storage boxes, etc.)
-- **Cloud API** — cloud infrastructure (servers, networks, volumes, load balancers, etc.)
-- **Auction API** — public server auction browser with rich filtering (no auth required)
+- **[Robot API](https://robot.hetzner.com)** — dedicated server management (servers, IPs, firewall, storage boxes, etc.)
+- **[Cloud API](https://console.hetzner.cloud)** — cloud infrastructure (servers, networks, volumes, load balancers, etc.)
+- **[Server Auction](https://www.hetzner.com/sb/)** — public server auction browser with rich filtering (no auth required)
+
+> **Note:** This is an unofficial, community-built CLI. The official Hetzner Cloud CLI is [`hcloud`](https://github.com/hetznercloud/cli). See [how they differ](#comparison-with-official-cli).
 
 ---
 
@@ -48,7 +48,7 @@ Unified CLI and Node.js library for Hetzner's three APIs:
 
 Hetzner maintains an official Cloud CLI called [`hcloud`](https://github.com/hetznercloud/cli), written in Go. This project (`hetzner-cli`) is a separate, community-built tool. Here's how they compare:
 
-| | [`hcloud`](https://github.com/hetznercloud/cli) (official) | `hetzner-cli` (this project) |
+| Feature | [`hcloud`](https://github.com/hetznercloud/cli) (official) | `hetzner-cli` (this project) |
 |---|---|---|
 | **API coverage** | Cloud only | Cloud + Robot + Server Auction |
 | **Language** | Go (single binary) | TypeScript / Node.js |

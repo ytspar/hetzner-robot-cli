@@ -1,0 +1,826 @@
+@font-face {
+  font-family: "Departure Mono";
+  src: url("https://departuremono.com/DepartureMono-Regular.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-mono: "Departure Mono", "SF Mono", "Cascadia Code", "Fira Code",
+    "JetBrains Mono", ui-monospace, monospace;
+
+  --terminal-bg: #1a1a2e;
+  --terminal-text: #e2e8f0;
+  --terminal-border: #2d2d44;
+  --terminal-prompt: #64748b;
+  --terminal-input: #f1f5f9;
+
+  --panel-bg: #1e1e32;
+  --panel-border: #2d2d44;
+  --panel-header-bg: #252540;
+  --tmux-bar-bg: #0f172a;
+
+  --cyan: #22d3ee;
+  --teal: #0891b2;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --blue: #60a5fa;
+  --magenta: #c084fc;
+  --bold: #f8fafc;
+  --dim: #64748b;
+  --gray: #94a3b8;
+}
+
+html,
+body {
+  height: 100%;
+  background: #0c0c1a;
+  color: var(--terminal-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- Window Title Bar ---- */
+.title-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #151528;
+  border-bottom: 1px solid var(--panel-border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.traffic-lights {
+  display: flex;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.tl-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.tl-close,
+.tl-minimize,
+.tl-maximize {
+  background: var(--dim);
+  opacity: 0.5;
+}
+
+.title-bar-text {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--dim);
+  letter-spacing: 0.02em;
+}
+
+.title-demo {
+  margin-left: 8px;
+  font-size: 0.65rem;
+  color: var(--dim);
+  border: 1px solid var(--dim);
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.08em;
+  animation: demo-pulse 6s ease-in-out infinite;
+}
+
+@keyframes demo-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0.3; }
+}
+
+.title-bar-links {
+  display: flex;
+  gap: 16px;
+}
+
+.title-bar-links a {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--dim);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.title-bar-links a:hover {
+  color: var(--cyan);
+}
+
+/* ---- Terminal Container (tmux-style, full-bleed) ---- */
+.tmux-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--terminal-bg);
+}
+
+.tmux-panels {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Left panel - terminal */
+.panel-terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--panel-border);
+}
+
+/* Right panel - README */
+.panel-readme {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--dim);
+  user-select: none;
+  gap: 8px;
+}
+
+.panel-header .active-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.panel-header .panel-title {
+  color: var(--terminal-text);
+}
+
+/* ---- Terminal ---- */
+.terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--terminal-text);
+  overflow: hidden;
+  cursor: text;
+}
+
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 12px 16px;
+  white-space: pre;
+  min-height: 0;
+}
+
+.terminal-output::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: var(--terminal-border);
+  border-radius: 3px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: var(--dim);
+}
+
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px 12px;
+  border-top: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.prompt {
+  color: var(--dim);
+  user-select: none;
+  white-space: pre;
+}
+
+.prompt .prompt-dollar {
+  color: var(--green);
+}
+
+.prompt .prompt-cmd {
+  color: var(--blue);
+  font-weight: bold;
+}
+
+.input-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.terminal-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--terminal-input);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  caret-color: transparent;
+  min-width: 0;
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background: var(--cyan);
+  animation: blink 1s step-end infinite;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border-radius: 1px;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Output line types */
+.output-line {
+  margin: 0;
+  min-height: 1.5em;
+}
+
+.output-prompt {
+  color: var(--dim);
+}
+
+.output-prompt .prompt-dollar {
+  color: var(--green);
+}
+
+.output-prompt .prompt-cmd {
+  color: var(--blue);
+  font-weight: bold;
+}
+
+.output-cmd {
+  color: var(--terminal-input);
+}
+
+.output-error {
+  color: var(--red);
+}
+
+/* ANSI color classes */
+.c-cyan {
+  color: var(--cyan);
+}
+.c-teal {
+  color: var(--teal);
+}
+.c-green {
+  color: var(--green);
+}
+.c-red {
+  color: var(--red);
+}
+.c-yellow {
+  color: var(--yellow);
+}
+.c-blue {
+  color: var(--blue);
+}
+.c-magenta {
+  color: var(--magenta);
+}
+.c-bold {
+  color: var(--bold);
+  font-weight: bold;
+}
+.c-dim {
+  color: var(--dim);
+}
+.c-gray {
+  color: var(--gray);
+}
+.c-white {
+  color: var(--terminal-text);
+}
+
+/* Table output */
+.table-output {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.table-output .c-cyan {
+  color: var(--cyan);
+}
+
+/* JSON output */
+.json-output {
+  margin: 4px 0;
+}
+
+.json-key {
+  color: var(--cyan);
+}
+
+.json-string {
+  color: var(--green);
+}
+
+.json-number {
+  color: var(--yellow);
+}
+
+.json-bool {
+  color: var(--magenta);
+}
+
+.json-null {
+  color: var(--dim);
+}
+
+.json-bracket {
+  color: var(--terminal-text);
+}
+
+/* ---- README Panel ---- */
+.readme-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 10px 16px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--gray);
+  background: var(--panel-bg);
+}
+
+.readme-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.readme-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.readme-content::-webkit-scrollbar-thumb {
+  background: var(--terminal-border);
+  border-radius: 3px;
+}
+
+.readme-content h1 {
+  color: var(--cyan);
+  font-size: 1.1em;
+  margin-bottom: 12px;
+  font-weight: bold;
+}
+
+.readme-content h2 {
+  color: var(--blue);
+  font-size: 0.95em;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.readme-content h3 {
+  color: var(--terminal-text);
+  font-size: 0.9em;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.readme-content p {
+  margin-bottom: 8px;
+}
+
+.readme-content code {
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--cyan);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.readme-content pre {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin: 6px 0 10px;
+  overflow-x: auto;
+  font-size: 0.9em;
+}
+
+.readme-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.readme-content .hl-comment {
+  color: var(--dim);
+  font-style: italic;
+}
+
+.readme-content .hl-cmd {
+  color: var(--blue);
+}
+
+.readme-content .hl-keyword {
+  color: var(--magenta);
+}
+
+.readme-content .hl-flag {
+  color: var(--cyan);
+}
+
+.readme-content .hl-string {
+  color: var(--green);
+}
+
+.readme-content .hl-op {
+  color: var(--dim);
+}
+
+.readme-content .hl-fn {
+  color: var(--blue);
+}
+
+.readme-content .hl-number {
+  color: var(--yellow);
+}
+
+.readme-content ul {
+  padding-left: 16px;
+  margin-bottom: 8px;
+}
+
+.readme-content li {
+  margin-bottom: 3px;
+}
+
+.readme-content a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+.readme-content a:hover {
+  text-decoration: underline;
+}
+
+.readme-content blockquote {
+  border-left: 3px solid var(--dim);
+  padding-left: 10px;
+  margin: 8px 0;
+  color: var(--dim);
+  font-size: 0.9em;
+}
+
+.readme-content blockquote strong {
+  color: var(--dim);
+  font-weight: bold;
+}
+
+.readme-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.85em;
+}
+
+.readme-content th,
+.readme-content td {
+  border: 1px solid var(--panel-border);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.readme-content th {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--cyan);
+  font-weight: bold;
+}
+
+.readme-content td {
+  color: var(--gray);
+}
+
+.readme-content strong {
+  color: var(--terminal-text);
+}
+
+.readme-content .badge {
+  display: inline-block;
+  background: rgba(8, 145, 178, 0.2);
+  color: var(--cyan);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.8em;
+  margin-right: 4px;
+}
+
+/* ---- tmux status bar ---- */
+.tmux-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 12px;
+  background: var(--tmux-bar-bg);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--dim);
+  border-top: 1px solid var(--panel-border);
+  user-select: none;
+}
+
+.tmux-bar .tmux-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tmux-bar .tmux-session {
+  background: var(--teal);
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
+.tmux-bar .tmux-window {
+  color: var(--gray);
+}
+
+.tmux-bar .tmux-window.active {
+  color: var(--terminal-text);
+}
+
+.tmux-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6rem;
+  line-height: 1;
+  border-radius: 3px;
+  overflow: hidden;
+  text-decoration: none;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  transition: border-color 0.15s;
+}
+
+.tmux-badge:hover {
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+.tmux-badge-label {
+  padding: 2px 5px;
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--dim);
+}
+
+.tmux-badge-value {
+  padding: 2px 5px;
+  background: rgba(34, 211, 238, 0.05);
+  color: var(--cyan);
+}
+
+.tmux-bar .tmux-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--dim);
+}
+
+.tmux-install {
+  color: var(--gray);
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tmux-install:hover {
+  color: var(--cyan);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.tmux-by {
+  color: var(--gray);
+  margin-left: auto;
+}
+
+.copyright-sym {
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+}
+
+.tmux-social {
+  color: var(--dim);
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.tmux-social:hover {
+  color: var(--cyan);
+}
+
+/* ---- Auth/Boot sequence ---- */
+.boot-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  padding: 40px;
+  font-family: var(--font-mono);
+  color: var(--terminal-text);
+}
+
+.boot-logo {
+  font-size: 1.1rem;
+  color: var(--blue);
+  font-weight: bold;
+  margin-bottom: 24px;
+  letter-spacing: 0.05em;
+}
+
+.boot-logo .cursor-boot {
+  display: inline-block;
+  width: 10px;
+  height: 18px;
+  background: var(--cyan);
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  border-radius: 1px;
+}
+
+.boot-hint {
+  color: var(--dim);
+  font-size: 0.8rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.auth-output {
+  width: 100%;
+  max-width: 520px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.auth-output .auth-line {
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.auth-step {
+  color: var(--dim);
+}
+
+.auth-ok {
+  color: var(--green);
+}
+
+.auth-info {
+  color: var(--cyan);
+}
+
+.auth-user {
+  color: var(--yellow);
+}
+
+/* ---- Responsive ---- */
+@media (min-width: 1200px) {
+  .panel-readme {
+    width: 560px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .panel-readme {
+    width: 700px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .tmux-session,
+  .tmux-window {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .tmux-panels {
+    flex-direction: column;
+  }
+
+  .panel-terminal {
+    flex: 1;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  .panel-readme {
+    width: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+
+  .title-demo {
+    display: none;
+  }
+
+  .panel-header {
+    display: none;
+  }
+
+  .tmux-bar .tmux-left {
+    display: none;
+  }
+
+  .tmux-bar .tmux-right {
+    flex: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .title-bar {
+    padding: 8px 12px;
+  }
+
+  .traffic-lights {
+    gap: 6px;
+    margin-right: 12px;
+  }
+
+  .tl-dot {
+    width: 10px;
+    height: 10px;
+  }
+}

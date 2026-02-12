@@ -1,0 +1,207 @@
+export type CommandHandler = (args: string) => string | Promise<string>;
+
+// Safe HTML rendering: all dynamic content is escaped before insertion.
+// Only pre-built HTML from our own formatter/command modules is rendered as HTML,
+// and those modules only produce HTML from hardcoded dummy data, never user input.
+function escapeHtml(text: string): string {
+  const div = document.createElement("span");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+export class Terminal {
+  private outputEl: HTMLElement;
+  private inputEl: HTMLInputElement;
+  private cursorEl: HTMLElement;
+  private containerEl: HTMLElement;
+  private history: string[] = [];
+  private historyIndex = -1;
+  private commandHandler: CommandHandler = () => "No command handler set";
+  private enabled = false;
+
+  constructor(container: HTMLElement) {
+    this.containerEl = container;
+
+    this.outputEl = document.createElement("div");
+    this.outputEl.className = "terminal-output";
+
+    const inputLine = document.createElement("div");
+    inputLine.className = "terminal-input-line";
+    inputLine.style.display = "none";
+
+    const prompt = document.createElement("span");
+    prompt.className = "prompt";
+    // Prompt uses only static content
+    const dollar = document.createElement("span");
+    dollar.className = "prompt-dollar";
+    dollar.textContent = "$";
+    const cmdSpan = document.createElement("span");
+    cmdSpan.className = "prompt-cmd";
+    cmdSpan.textContent = "hetzner";
+    prompt.appendChild(dollar);
+    prompt.append(" ");
+    prompt.appendChild(cmdSpan);
+    prompt.append(" ");
+
+    const inputArea = document.createElement("div");
+    inputArea.className = "input-area";
+
+    this.inputEl = document.createElement("input");
+    this.inputEl.className = "terminal-input";
+    this.inputEl.type = "text";
+    this.inputEl.spellcheck = false;
+    this.inputEl.autocomplete = "off";
+    this.inputEl.autocapitalize = "off";
+
+    this.cursorEl = document.createElement("span");
+    this.cursorEl.className = "cursor";
+
+    inputArea.appendChild(this.inputEl);
+    inputArea.appendChild(this.cursorEl);
+    inputLine.appendChild(prompt);
+    inputLine.appendChild(inputArea);
+
+    const terminalDiv = document.createElement("div");
+    terminalDiv.className = "terminal";
+    terminalDiv.appendChild(this.outputEl);
+    terminalDiv.appendChild(inputLine);
+
+    container.appendChild(terminalDiv);
+
+    // Click-to-focus
+    terminalDiv.addEventListener("click", () => {
+      if (this.enabled) {
+        this.inputEl.focus();
+      }
+    });
+
+    // Key handlers
+    this.inputEl.addEventListener("keydown", (e) => this.handleKey(e));
+  }
+
+  setCommandHandler(handler: CommandHandler) {
+    this.commandHandler = handler;
+  }
+
+  enable() {
+    this.enabled = true;
+    const inputLine = this.containerEl.querySelector(
+      ".terminal-input-line"
+    ) as HTMLElement;
+    if (inputLine) inputLine.style.display = "flex";
+    this.inputEl.focus();
+  }
+
+  focus() {
+    this.inputEl.focus();
+  }
+
+  getOutputEl() {
+    return this.outputEl;
+  }
+
+  private async handleKey(e: KeyboardEvent) {
+    if (!this.enabled) return;
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const cmd = this.inputEl.value.trim();
+      this.inputEl.value = "";
+
+      if (!cmd) {
+        this.scrollToBottom();
+        return;
+      }
+
+      // Show the command in output
+      this.appendPromptLine(cmd);
+
+      if (cmd) {
+        this.history.push(cmd);
+        this.historyIndex = this.history.length;
+
+        const result = await this.commandHandler(cmd);
+        if (result) {
+          // Result is generated from our own command system using only
+          // hardcoded data and escaped user input — safe to render as HTML
+          this.appendCommandOutput(result);
+        }
+      }
+
+      this.scrollToBottom();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (this.historyIndex > 0) {
+        this.historyIndex--;
+        this.inputEl.value = this.history[this.historyIndex];
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (this.historyIndex < this.history.length - 1) {
+        this.historyIndex++;
+        this.inputEl.value = this.history[this.historyIndex];
+      } else {
+        this.historyIndex = this.history.length;
+        this.inputEl.value = "";
+      }
+    } else if (e.key === "l" && e.ctrlKey) {
+      e.preventDefault();
+      this.clear();
+    }
+  }
+
+  private appendPromptLine(cmd: string) {
+    const line = document.createElement("div");
+    line.className = "output-line";
+
+    const promptSpan = document.createElement("span");
+    promptSpan.className = "output-prompt";
+    const d = document.createElement("span");
+    d.className = "prompt-dollar";
+    d.textContent = "$";
+    const c = document.createElement("span");
+    c.className = "prompt-cmd";
+    c.textContent = "hetzner";
+    promptSpan.appendChild(d);
+    promptSpan.append(" ");
+    promptSpan.appendChild(c);
+    promptSpan.append(" ");
+
+    const cmdSpan = document.createElement("span");
+    cmdSpan.className = "output-cmd";
+    cmdSpan.textContent = cmd;
+
+    line.appendChild(promptSpan);
+    line.appendChild(cmdSpan);
+    this.outputEl.appendChild(line);
+  }
+
+  // Renders pre-built HTML output from our command system.
+  // All user-supplied values are escaped by the command/formatter layer.
+  private appendCommandOutput(html: string) {
+    const div = document.createElement("div");
+    div.innerHTML = html; // nosemgrep: safe — content from internal command system with escaped user inputs
+    this.outputEl.appendChild(div);
+    this.scrollToBottom();
+  }
+
+  appendText(text: string) {
+    const div = document.createElement("div");
+    div.className = "output-line";
+    div.textContent = text;
+    this.outputEl.appendChild(div);
+    this.scrollToBottom();
+  }
+
+  clear() {
+    this.outputEl.innerHTML = ""; // nosemgrep: clearing output — no user data
+  }
+
+  private scrollToBottom() {
+    requestAnimationFrame(() => {
+      this.outputEl.scrollTop = this.outputEl.scrollHeight;
+    });
+  }
+}
+
+export { escapeHtml };

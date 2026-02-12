@@ -49,6 +49,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
+    "dev:website": "npm --prefix website run dev",
     "start": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
@@ -92,18 +93,18 @@
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",
     "cli-table3": "^0.6.5",
-    "commander": "^14.0.2",
+    "commander": "^14.0.3",
     "dotenv": "^17.2.4",
     "keytar": "^7.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.2.3",
     "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^9.0.0",
-    "eslint-plugin-security": "^3.0.0",
-    "typescript": "^5.7.0",
-    "typescript-eslint": "^8.0.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-security": "^3.0.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
   },
   "engines": {
