@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite",
     "generate:og": "node scripts/generate-og-image.mjs",
-    "prebuild": "node scripts/generate-og-image.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
